@@ -1,0 +1,7 @@
+carrier_id,carrier_name,service_type,reliability_score,base_cost_per_km,expedite_multiplier,capacity_units
+CAR-001,EuroTrans Logistics,Standard Road,0.91,1.05,1.6,5000
+CAR-002,NorthStar Freight,Express Road,0.96,1.35,1.45,3500
+CAR-003,Continental Cargo,Standard Road,0.89,0.95,1.75,7000
+CAR-004,SwiftLink Transport,Express Road,0.94,1.4,1.4,3000
+CAR-005,GreenRoute Freight,Low-Carbon Road,0.93,1.15,1.55,4500
+CAR-006,PanEuro Logistics,Standard Road,0.88,0.9,1.8,8000

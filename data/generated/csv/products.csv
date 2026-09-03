@@ -1,0 +1,76 @@
+product_id,product_name,category,unit_weight_kg,unit_value_eur,criticality
+PRD-001,Tempore Industrial,Industrial Equipment,21.54,1052.1,MEDIUM
+PRD-002,Culpa Consumer,Consumer Goods,24.4,1146.49,LOW
+PRD-003,Alias Consumer,Consumer Goods,11.53,568.78,LOW
+PRD-004,Harum Consumer,Consumer Goods,16.27,1237.69,HIGH
+PRD-005,Exercitationem Medical,Medical Equipment,14.09,114.45,LOW
+PRD-006,Et Automotive,Automotive Components,15.98,1141.97,HIGH
+PRD-007,Deserunt Consumer,Consumer Goods,22.38,1172.01,CRITICAL
+PRD-008,Corporis Automotive,Automotive Components,11.93,84.83,LOW
+PRD-009,Veritatis Medical,Medical Equipment,18.75,1451.91,MEDIUM
+PRD-010,Quisquam Industrial,Industrial Equipment,9.58,714.94,MEDIUM
+PRD-011,Commodi Consumer,Consumer Goods,12.15,355.83,LOW
+PRD-012,Rerum Electronics,Electronics,11.21,1252.36,MEDIUM
+PRD-013,Nisi Medical,Medical Equipment,20.89,1211.05,MEDIUM
+PRD-014,Aliquid Consumer,Consumer Goods,7.56,1030.09,MEDIUM
+PRD-015,Aliquam Medical,Medical Equipment,0.68,1184.65,LOW
+PRD-016,Consectetur Industrial,Industrial Equipment,17.78,1175.48,MEDIUM
+PRD-017,Esse Medical,Medical Equipment,3.93,189.5,MEDIUM
+PRD-018,Eveniet Automotive,Automotive Components,12.04,856.55,MEDIUM
+PRD-019,Quae Industrial,Industrial Equipment,14.06,847.63,MEDIUM
+PRD-020,Sed Consumer,Consumer Goods,1.26,666.34,MEDIUM
+PRD-021,Alias Packaging,Packaging,21.41,366.23,MEDIUM
+PRD-022,Ratione Electronics,Electronics,7.39,454.52,LOW
+PRD-023,Eius Automotive,Automotive Components,19.71,1003.18,MEDIUM
+PRD-024,Totam Medical,Medical Equipment,20.44,267.12,MEDIUM
+PRD-025,Voluptates Automotive,Automotive Components,18.2,703.58,LOW
+PRD-026,Quisquam Industrial,Industrial Equipment,12.78,245.42,LOW
+PRD-027,Nihil Automotive,Automotive Components,9.84,466.24,MEDIUM
+PRD-028,Est Consumer,Consumer Goods,9.36,149.72,MEDIUM
+PRD-029,Occaecati Automotive,Automotive Components,22.76,1055.57,CRITICAL
+PRD-030,Repudiandae Industrial,Industrial Equipment,24.24,1172.55,LOW
+PRD-031,Hic Electronics,Electronics,7.17,162.66,MEDIUM
+PRD-032,Ab Consumer,Consumer Goods,11.67,319.5,HIGH
+PRD-033,Dolore Consumer,Consumer Goods,4.83,1287.79,MEDIUM
+PRD-034,Voluptatem Electronics,Electronics,18.13,659.5,HIGH
+PRD-035,Nisi Electronics,Electronics,16.42,144.98,MEDIUM
+PRD-036,Laboriosam Medical,Medical Equipment,1.52,751.11,MEDIUM
+PRD-037,Hic Electronics,Electronics,3.03,889.71,LOW
+PRD-038,Dolor Electronics,Electronics,23.17,879.97,LOW
+PRD-039,Esse Automotive,Automotive Components,1.06,1438.67,MEDIUM
+PRD-040,Labore Automotive,Automotive Components,19.68,142.44,MEDIUM
+PRD-041,Corporis Electronics,Electronics,23.48,866.16,MEDIUM
+PRD-042,Industrial Control Module,Industrial Equipment,2.4,850.0,CRITICAL
+PRD-043,Modi Medical,Medical Equipment,1.03,1242.91,MEDIUM
+PRD-044,Consequatur Medical,Medical Equipment,3.94,839.97,HIGH
+PRD-045,Magnam Electronics,Electronics,7.39,995.95,MEDIUM
+PRD-046,Laborum Industrial,Industrial Equipment,19.33,179.46,HIGH
+PRD-047,Sed Medical,Medical Equipment,1.42,841.18,LOW
+PRD-048,Fuga Packaging,Packaging,20.83,1216.21,MEDIUM
+PRD-049,Aperiam Packaging,Packaging,7.63,782.28,CRITICAL
+PRD-050,Officia Electronics,Electronics,23.43,263.62,LOW
+PRD-051,Quidem Medical,Medical Equipment,24.81,1339.68,MEDIUM
+PRD-052,Cupiditate Industrial,Industrial Equipment,22.32,1342.3,HIGH
+PRD-053,Minus Industrial,Industrial Equipment,19.41,999.26,MEDIUM
+PRD-054,Beatae Medical,Medical Equipment,2.81,1125.25,MEDIUM
+PRD-055,Quod Automotive,Automotive Components,6.4,201.68,CRITICAL
+PRD-056,Impedit Electronics,Electronics,4.26,285.32,HIGH
+PRD-057,Sunt Automotive,Automotive Components,5.31,479.28,HIGH
+PRD-058,Sit Medical,Medical Equipment,24.31,761.1,HIGH
+PRD-059,Magni Automotive,Automotive Components,6.13,215.1,LOW
+PRD-060,Repellat Industrial,Industrial Equipment,3.48,769.37,MEDIUM
+PRD-061,Earum Packaging,Packaging,5.39,1210.1,MEDIUM
+PRD-062,Voluptatibus Consumer,Consumer Goods,18.61,213.97,HIGH
+PRD-063,Atque Automotive,Automotive Components,10.24,465.4,HIGH
+PRD-064,Aperiam Industrial,Industrial Equipment,16.74,1434.32,MEDIUM
+PRD-065,Ut Medical,Medical Equipment,1.11,841.69,HIGH
+PRD-066,Eum Electronics,Electronics,3.09,227.7,MEDIUM
+PRD-067,Illum Consumer,Consumer Goods,15.1,1400.87,CRITICAL
+PRD-068,Beatae Automotive,Automotive Components,11.95,1181.45,HIGH
+PRD-069,Eveniet Packaging,Packaging,20.82,1199.29,LOW
+PRD-070,Consequuntur Industrial,Industrial Equipment,13.5,916.9,LOW
+PRD-071,Modi Packaging,Packaging,10.61,573.79,MEDIUM
+PRD-072,Hic Packaging,Packaging,16.47,1303.89,MEDIUM
+PRD-073,Odit Electronics,Electronics,6.3,1124.1,LOW
+PRD-074,Tempora Automotive,Automotive Components,3.08,118.51,HIGH
+PRD-075,Maiores Automotive,Automotive Components,20.7,479.3,LOW

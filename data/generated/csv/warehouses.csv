@@ -1,0 +1,6 @@
+warehouse_id,warehouse_name,city,country,latitude,longitude,capacity_units
+PAR-01,Nexora Paris Distribution Centre,Paris,France,48.8566,2.3522,25000
+BRU-01,Nexora Brussels Distribution Centre,Brussels,Belgium,50.8503,4.3517,22000
+FRA-01,Nexora Frankfurt Distribution Centre,Frankfurt,Germany,50.1109,8.6821,30000
+MIL-01,Nexora Milan Distribution Centre,Milan,Italy,45.4642,9.19,24000
+MAD-01,Nexora Madrid Distribution Centre,Madrid,Spain,40.4168,-3.7038,26000

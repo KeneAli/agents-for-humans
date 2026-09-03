@@ -1,0 +1,31 @@
+customer_id,customer_name,industry,country,customer_segment,sla_tier,sla_penalty_rate_eur_per_hour,credit_policy
+CUS-001,NordTech Manufacturing,Industrial Manufacturing,Germany,Enterprise,CRITICAL,150,Guaranteed Delivery Credit
+CUS-002,"Phillips, Cross and Miah",FMCG,France,Mid-Market,STANDARD,50,Standard SLA Credit
+CUS-003,"Thomson, Wilkinson and Smith",Industrial Manufacturing,Belgium,Mid-Market,STANDARD,50,Standard SLA Credit
+CUS-004,Lamb-Scott,Automotive,Spain,Mid-Market,STANDARD,50,Standard SLA Credit
+CUS-005,"Holmes, Lloyd and Duncan",Automotive,Spain,Mid-Market,STANDARD,50,Standard SLA Credit
+CUS-006,Wilson Inc,Automotive,Italy,Enterprise,PREMIUM,100,Standard SLA Credit
+CUS-007,Alexander-Collins,Retail,Spain,Mid-Market,STANDARD,50,Standard SLA Credit
+CUS-008,"Hawkins, McLean and Lynch",Industrial Manufacturing,Spain,Mid-Market,STANDARD,50,Standard SLA Credit
+CUS-009,Young-Graham,FMCG,Italy,Enterprise,PREMIUM,100,Standard SLA Credit
+CUS-010,Pritchard and Sons,Automotive,Netherlands,Mid-Market,STANDARD,50,Standard SLA Credit
+CUS-011,"Moore, Smith and Jackson",Industrial Manufacturing,Italy,Mid-Market,STANDARD,50,Standard SLA Credit
+CUS-012,"Matthews, Lloyd and Turner",Healthcare,Germany,Mid-Market,STANDARD,50,Standard SLA Credit
+CUS-013,"Hughes, Davey and Taylor",Automotive,Netherlands,Mid-Market,STANDARD,50,Standard SLA Credit
+CUS-014,Johnson Ltd,Healthcare,France,Mid-Market,STANDARD,50,Standard SLA Credit
+CUS-015,Anderson-Cooper,FMCG,Belgium,Mid-Market,STANDARD,50,Standard SLA Credit
+CUS-016,"Turner, Hill and Coates",FMCG,Netherlands,Mid-Market,STANDARD,50,Standard SLA Credit
+CUS-017,Davies Inc,FMCG,Germany,Enterprise,CRITICAL,150,Guaranteed Delivery Credit
+CUS-018,"Young, Myers and Read",FMCG,Italy,Enterprise,PREMIUM,100,Standard SLA Credit
+CUS-019,Griffiths-Williams,Retail,Italy,Enterprise,PREMIUM,100,Standard SLA Credit
+CUS-020,Harper-Atkinson,Retail,Spain,Mid-Market,STANDARD,50,Standard SLA Credit
+CUS-021,"Smith, Knight and Carpenter",Healthcare,Netherlands,Mid-Market,STANDARD,50,Standard SLA Credit
+CUS-022,Taylor LLC,FMCG,Spain,Mid-Market,STANDARD,50,Standard SLA Credit
+CUS-023,"Buckley, Ryan and Patel",Electronics,Germany,Enterprise,PREMIUM,100,Standard SLA Credit
+CUS-024,Powell PLC,Industrial Manufacturing,Belgium,Mid-Market,STANDARD,50,Standard SLA Credit
+CUS-025,Anderson Group,Electronics,Italy,Mid-Market,STANDARD,50,Standard SLA Credit
+CUS-026,Griffiths LLC,Industrial Manufacturing,Italy,Mid-Market,STANDARD,50,Standard SLA Credit
+CUS-027,Smith-Smith,Electronics,Belgium,Mid-Market,STANDARD,50,Standard SLA Credit
+CUS-028,"May, Cunningham and Jones",Electronics,Germany,Enterprise,PREMIUM,100,Standard SLA Credit
+CUS-029,Stewart PLC,Industrial Manufacturing,Spain,Enterprise,CRITICAL,150,Guaranteed Delivery Credit
+CUS-030,Clarke Group,FMCG,Spain,Mid-Market,STANDARD,50,Standard SLA Credit
