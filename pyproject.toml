@@ -1,0 +1,18 @@
+[project]
+name = "agents-for-humans"
+version = "0.1.0"
+description = "Logistics recovery agent using Strands Agents and Amazon Bedrock"
+requires-python = ">=3.14,<3.15"
+dependencies = [
+    "boto3==1.43.77",
+    "faker==40.37.0",
+    "numpy==2.5.2",
+    "pandas==3.0.5",
+    "pyarrow==25.0.1",
+    "strands-agents==1.52.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest",
+]
