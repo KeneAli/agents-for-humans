@@ -244,7 +244,7 @@ def create_recovery_tools(
             already calculated by the recovery workflow.
         """
 
-        approval = state.get_pending_recovery_approval()
+        approval = state.get_pending_recovery_approval(shipment_id)
 
         if approval is None:
             return {

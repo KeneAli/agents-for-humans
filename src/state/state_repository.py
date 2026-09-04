@@ -14,12 +14,14 @@ class StateRepository(ABC):
     @abstractmethod
     def get_pending_recovery_approval(
         self,
+        shipment_id: str,
     ) -> dict | None:
         pass
 
     @abstractmethod
     def clear_pending_recovery_approval(
         self,
+        shipment_id: str,
     ) -> None:
         pass
 

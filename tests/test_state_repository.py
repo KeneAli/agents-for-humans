@@ -17,14 +17,14 @@ def test_pending_recovery_approval():
     )
 
     assert (
-        repository.get_pending_recovery_approval()
+        repository.get_pending_recovery_approval(shipment_id="SHP-0048")
         == approval
     )
 
-    repository.clear_pending_recovery_approval()
+    repository.clear_pending_recovery_approval(shipment_id="SHP-0048")
 
     assert (
-        repository.get_pending_recovery_approval()
+        repository.get_pending_recovery_approval(shipment_id="SHP-0048")
         is None
     )
 
@@ -86,7 +86,7 @@ def test_operational_state_uses_injected_repository():
     state.set_pending_recovery_approval(approval)
 
     assert (
-        repository.get_pending_recovery_approval()
+        repository.get_pending_recovery_approval(shipment_id="SHP-0048")
         == approval
     )
 

@@ -1,8 +1,8 @@
 from pathlib import Path
 # from datetime import datetime, timezone
 import pandas as pd
-from src.state.in_memory_state_repository import (
-    InMemoryStateRepository,
+from src.state.state_repository_factory import (
+    create_state_repository,
 )
 from src.state.state_repository import StateRepository
 
@@ -42,7 +42,7 @@ class OperationalState:
         self.repository = (
             repository
             if repository is not None
-            else InMemoryStateRepository()
+            else create_state_repository()
         )
 
         # # Pending human approval for recovery decisions
@@ -92,19 +92,19 @@ class OperationalState:
         """
         self.repository.set_pending_recovery_approval(approval)
 
-    def get_pending_recovery_approval(self):
+    def get_pending_recovery_approval(self, shipment_id: str):
         """
         Return the recovery decision currently awaiting
         human approval.
         """
-        return self.repository.get_pending_recovery_approval()
+        return self.repository.get_pending_recovery_approval(shipment_id)
 
-    def clear_pending_recovery_approval(self):
+    def clear_pending_recovery_approval(self, shipment_id: str):
         """
         Clear the pending approval after the decision has
         been handled.
         """
-        self.repository.clear_pending_recovery_approval()
+        self.repository.clear_pending_recovery_approval(shipment_id)
 
     # ========================================================
     # RECOVERY WORKFLOW

@@ -7,7 +7,7 @@ from .state_repository import StateRepository
 class InMemoryStateRepository(StateRepository):
 
     def __init__(self):
-        self.pending_recovery_approval = None
+        self.pending_recovery_approvals = {}
         self.recovery_workflows = {}
         self.audit_events = []
 
@@ -15,17 +15,22 @@ class InMemoryStateRepository(StateRepository):
         self,
         approval: dict | None,
     ) -> None:
-        self.pending_recovery_approval = approval
+        if approval is None:
+            return
+        shipment_id = approval["shipment_id"]
+        self.pending_recovery_approvals[shipment_id] = approval
 
     def get_pending_recovery_approval(
         self,
+        shipment_id: str,
     ) -> dict | None:
-        return self.pending_recovery_approval
+        return self.pending_recovery_approvals.get(shipment_id)
 
     def clear_pending_recovery_approval(
         self,
+        shipment_id: str,
     ) -> None:
-        self.pending_recovery_approval = None
+        self.pending_recovery_approvals.pop(shipment_id, None)
 
     def set_recovery_workflow(
         self,
