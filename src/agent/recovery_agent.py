@@ -123,7 +123,7 @@ def create_recovery_agent(
     )
 
     human_approval = HumanInTheLoop(
-        ask="stdio", 
+
         allowed_tools=[ 
             "get_shipment_context", 
             "get_business_consequences", 
