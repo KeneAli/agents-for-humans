@@ -1,6 +1,7 @@
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
 
 from src.agent.recovery_agent import create_recovery_agent
+from src.simulation.event_simulator import apply_disruption_event
 from src.simulation.operational_state import OperationalState
 
 
@@ -15,15 +16,16 @@ def agent_invocation(payload, context):
 
     user_message = payload.get("prompt")
     interrupt_responses = payload.get("interrupt_responses")
+    disruption_event = payload.get("disruption_event")
 
     # Resume an interrupted HITL request
     if interrupt_responses is not None:
 
-        if user_message is not None:
+        if user_message is not None or disruption_event is not None:
             return {
                 "error": (
-                    "Provide either 'prompt' or 'interrupt_responses', "
-                    "not both."
+                    "Provide only 'interrupt_responses' when resuming "
+                    "an interrupted request."
                 )
             }
 
@@ -53,6 +55,42 @@ def agent_invocation(payload, context):
             }
             for response in interrupt_responses
         ]
+
+    # Operational disruption event
+    elif disruption_event is not None:
+        if user_message is not None:
+            return {
+                "error": (
+                    "Provide either 'prompt' or 'disruption_event', "
+                    "not both."
+                )
+            }
+
+        try:
+            processing_result = apply_disruption_event(
+                state=state,
+                event=disruption_event,
+            )
+        except ValueError as error:
+            return {"error": str(error)}
+
+        if not processing_result["applied"]:
+            return {
+                "status": processing_result["status"],
+                "event": processing_result["event"],
+                "message": (
+                    "Disruption event "
+                    f"{processing_result['event']['event_id']} "
+                    "was already processed."
+                ),
+            }
+
+        canonical_event = processing_result["event"]
+        agent_input = (
+            f"Investigate shipment {canonical_event['shipment_id']} "
+            "after this operational disruption and determine the best "
+            "recovery action."
+        )
 
     # Normal invocation
     elif not isinstance(user_message, str) or not user_message.strip():

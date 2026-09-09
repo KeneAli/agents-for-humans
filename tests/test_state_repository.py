@@ -74,6 +74,29 @@ def test_audit_events():
         == "EXPEDITED_TRANSPORT"
     )
 
+
+def test_disruption_event_claim_is_idempotent():
+    repository = InMemoryStateRepository()
+
+    event = {
+        "event_id": "SIM-A1B2C3D4",
+        "event_type": "VEHICLE_BREAKDOWN",
+        "shipment_id": "SHP-0048",
+        "delay_minutes": 480,
+    }
+
+    assert repository.claim_disruption_event(
+        event_id=event["event_id"],
+        shipment_id=event["shipment_id"],
+        event=event,
+    ) is True
+
+    assert repository.claim_disruption_event(
+        event_id=event["event_id"],
+        shipment_id=event["shipment_id"],
+        event=event,
+    ) is False
+
 def test_operational_state_uses_injected_repository():
     repository = InMemoryStateRepository()
     state = OperationalState(repository=repository)

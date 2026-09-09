@@ -21,6 +21,8 @@ SEVERITY_THRESHOLDS = {
     "HIGH": 720,
 }
 
+DEFAULT_EVENT_SOURCE = "simulation_ui"
+
 
 def determine_severity(delay_minutes: int) -> str:
     """
@@ -84,6 +86,109 @@ def validate_scenario(
             f"Shipment {shipment_id} not found."
         )
 
+
+def apply_disruption_event(
+    state: OperationalState,
+    event: dict,
+) -> dict:
+    """
+    Validate, normalize, claim, and apply one disruption event.
+
+    The repository claim happens before the operational state is mutated,
+    so repeated deliveries cannot apply the same delay twice.
+    """
+
+    if not isinstance(event, dict):
+        raise ValueError("event must be a dictionary.")
+
+    event_id = event.get("event_id")
+    if not isinstance(event_id, str) or not event_id.strip():
+        raise ValueError("event_id must be a non-empty string.")
+
+    event_type = event.get("event_type")
+    shipment_id = event.get("shipment_id")
+    delay_minutes = event.get("delay_minutes")
+
+    if event_type not in SUPPORTED_DISRUPTIONS:
+        raise ValueError(
+            f"Unsupported disruption type: {event_type}. "
+            f"Supported types: {sorted(SUPPORTED_DISRUPTIONS)}"
+        )
+
+    if not isinstance(shipment_id, str) or not shipment_id.strip():
+        raise ValueError("shipment_id must be a non-empty string.")
+
+    if isinstance(delay_minutes, bool) or not isinstance(delay_minutes, int):
+        raise ValueError("delay_minutes must be an integer.")
+
+    if delay_minutes <= 0:
+        raise ValueError("delay_minutes must be greater than zero.")
+
+    validate_scenario(
+        state=state,
+        shipment_id=shipment_id,
+        event_type=event_type,
+        delay_minutes=delay_minutes,
+    )
+
+    source = event.get("source", DEFAULT_EVENT_SOURCE)
+    if not isinstance(source, str) or not source.strip():
+        raise ValueError("source must be a non-empty string.")
+    source = source.strip()
+
+    timestamp = event.get("timestamp")
+    if timestamp is None:
+        timestamp = datetime.now(timezone.utc).isoformat()
+    elif not isinstance(timestamp, str) or not timestamp.strip():
+        raise ValueError("timestamp must be a non-empty string when supplied.")
+    else:
+        timestamp = timestamp.strip()
+
+    description = event.get("description")
+    if description is None:
+        description = (
+            f"{event_type.replace('_', ' ').title()} causing an estimated "
+            f"{delay_minutes}-minute disruption."
+        )
+    elif not isinstance(description, str) or not description.strip():
+        raise ValueError(
+            "description must be a non-empty string when supplied."
+        )
+    else:
+        description = description.strip()
+
+    canonical_event = {
+        "event_id": event_id.strip(),
+        "event_type": event_type,
+        "shipment_id": shipment_id.strip(),
+        "delay_minutes": delay_minutes,
+        "severity": determine_severity(delay_minutes),
+        "source": source,
+        "timestamp": timestamp,
+        "description": description,
+    }
+
+    claimed = state.repository.claim_disruption_event(
+        event_id=canonical_event["event_id"],
+        shipment_id=canonical_event["shipment_id"],
+        event=canonical_event,
+    )
+
+    if not claimed:
+        return {
+            "applied": False,
+            "status": "already_processed",
+            "event": canonical_event,
+        }
+
+    state.add_runtime_event(canonical_event)
+
+    return {
+        "applied": True,
+        "status": "applied",
+        "event": canonical_event,
+    }
+
 def simulate_disruption(
     state: OperationalState,
     shipment_id: str,
@@ -93,17 +198,6 @@ def simulate_disruption(
     """
     Inject a generic runtime operational disruption.
     """
-
-    validate_scenario(
-        state=state,
-        shipment_id=shipment_id,
-        event_type=event_type,
-        delay_minutes=delay_minutes,
-    )
-
-    severity = determine_severity(
-        delay_minutes
-    )
 
     event = {
         "event_id": (
@@ -124,11 +218,12 @@ def simulate_disruption(
         ),
     }
 
-    state.add_runtime_event(
-        event
+    result = apply_disruption_event(
+        state=state,
+        event=event,
     )
 
-    return event
+    return result["event"]
 
 
 if __name__ == "__main__":

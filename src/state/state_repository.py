@@ -63,3 +63,12 @@ class StateRepository(ABC):
         shipment_id: str | None = None,
     ) -> list[dict]:
         pass
+
+    @abstractmethod
+    def claim_disruption_event(
+        self,
+        event_id: str,
+        shipment_id: str,
+        event: dict,
+    ) -> bool:
+        pass

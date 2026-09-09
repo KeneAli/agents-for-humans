@@ -4,6 +4,7 @@ from uuid import uuid4
 
 import boto3
 from boto3.dynamodb.conditions import Key
+from botocore.exceptions import ClientError
 
 from .state_repository import StateRepository
 from decimal import Decimal
@@ -234,3 +235,32 @@ class DynamoDBStateRepository(StateRepository):
             }
             for item in response.get("Items", [])
         ]
+
+    def claim_disruption_event(
+        self,
+        event_id: str,
+        shipment_id: str,
+        event: dict,
+    ) -> bool:
+        try:
+            self.table.put_item(
+                Item=self._to_dynamodb_compatible(
+                    {
+                        **self._shipment_key(
+                            shipment_id,
+                            f"EVENT#{event_id}",
+                        ),
+                        "entity_type": "DISRUPTION_EVENT",
+                        "event_id": event_id,
+                        "shipment_id": shipment_id,
+                        "event": event,
+                    }
+                ),
+                ConditionExpression="attribute_not_exists(pk)",
+            )
+        except ClientError as error:
+            if error.response["Error"]["Code"] == "ConditionalCheckFailedException":
+                return False
+            raise
+
+        return True

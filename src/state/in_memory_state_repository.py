@@ -10,6 +10,7 @@ class InMemoryStateRepository(StateRepository):
         self.pending_recovery_approvals = {}
         self.recovery_workflows = {}
         self.audit_events = []
+        self.claimed_disruption_event_ids = set()
 
     def set_pending_recovery_approval(
         self,
@@ -92,3 +93,15 @@ class InMemoryStateRepository(StateRepository):
             if event["shipment_id"]
             == shipment_id
         ]
+
+    def claim_disruption_event(
+        self,
+        event_id: str,
+        shipment_id: str,
+        event: dict,
+    ) -> bool:
+        if event_id in self.claimed_disruption_event_ids:
+            return False
+
+        self.claimed_disruption_event_ids.add(event_id)
+        return True

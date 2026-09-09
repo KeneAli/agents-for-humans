@@ -5,6 +5,7 @@ from src.state.dynamodb_state_repository import (
 )
 
 from decimal import Decimal
+from botocore.exceptions import ClientError
 
 
 @patch("src.state.dynamodb_state_repository.boto3.resource")
@@ -228,3 +229,64 @@ def test_nested_float_values_are_converted_to_decimal(
         ],
         Decimal,
     )
+
+
+@patch("src.state.dynamodb_state_repository.boto3.resource")
+def test_claim_disruption_event(mock_resource):
+    table = MagicMock()
+    mock_resource.return_value.Table.return_value = table
+
+    repository = DynamoDBStateRepository()
+    event = {
+        "event_id": "SIM-A1B2C3D4",
+        "event_type": "VEHICLE_BREAKDOWN",
+        "shipment_id": "SHP-0048",
+        "delay_minutes": 480,
+    }
+
+    assert repository.claim_disruption_event(
+        event_id=event["event_id"],
+        shipment_id=event["shipment_id"],
+        event=event,
+    ) is True
+
+    table.put_item.assert_called_once_with(
+        Item={
+            "pk": "SHIPMENT#SHP-0048",
+            "sk": "EVENT#SIM-A1B2C3D4",
+            "entity_type": "DISRUPTION_EVENT",
+            "event_id": "SIM-A1B2C3D4",
+            "shipment_id": "SHP-0048",
+            "event": event,
+        },
+        ConditionExpression="attribute_not_exists(pk)",
+    )
+
+
+@patch("src.state.dynamodb_state_repository.boto3.resource")
+def test_claim_disruption_event_returns_false_for_duplicate(mock_resource):
+    table = MagicMock()
+    mock_resource.return_value.Table.return_value = table
+
+    table.put_item.side_effect = ClientError(
+        {
+            "Error": {
+                "Code": "ConditionalCheckFailedException",
+                "Message": "The conditional request failed",
+            }
+        },
+        "PutItem",
+    )
+
+    repository = DynamoDBStateRepository()
+
+    assert repository.claim_disruption_event(
+        event_id="SIM-A1B2C3D4",
+        shipment_id="SHP-0048",
+        event={
+            "event_id": "SIM-A1B2C3D4",
+            "event_type": "VEHICLE_BREAKDOWN",
+            "shipment_id": "SHP-0048",
+            "delay_minutes": 480,
+        },
+    ) is False
