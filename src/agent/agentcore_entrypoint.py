@@ -1,8 +1,10 @@
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
+from strands.session.repository_session_manager import RepositorySessionManager
 
 from src.agent.recovery_agent import create_recovery_agent
 from src.simulation.event_simulator import apply_disruption_event
 from src.simulation.operational_state import OperationalState
+from src.state.dynamodb_session_repository import DynamoDBSessionRepository
 
 
 app = BedrockAgentCoreApp()
@@ -101,7 +103,19 @@ def agent_invocation(payload, context):
     else:
         agent_input = user_message
 
-    result = agent(agent_input)
+    request_session_id = getattr(context, "session_id", None)
+    request_agent = agent
+    if request_session_id:
+        session_repository = DynamoDBSessionRepository()
+        request_agent = create_recovery_agent(
+            state,
+            session_manager=RepositorySessionManager(
+                session_id=request_session_id,
+                session_repository=session_repository,
+            ),
+        )
+
+    result = request_agent(agent_input)
 
     response = {
         "result": result.message,

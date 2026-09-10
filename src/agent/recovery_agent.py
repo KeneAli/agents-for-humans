@@ -1,5 +1,6 @@
 from strands import Agent
 from strands.models import BedrockModel
+from strands.session.session_manager import SessionManager
 from strands.vended_interventions.hitl import HumanInTheLoop
 
 from src.agent.tools.shipment_tools import (
@@ -102,6 +103,7 @@ Execution and human authorization:
 
 def create_recovery_agent(
     state: OperationalState,
+    session_manager: SessionManager | None = None,
 ) -> Agent:
 
     model = BedrockModel(
@@ -138,6 +140,7 @@ def create_recovery_agent(
     )
 
     return Agent(
+        agent_id="RecoveryAgent",
         model=model,
         system_prompt=SYSTEM_PROMPT,
         tools=[
@@ -148,6 +151,7 @@ def create_recovery_agent(
         interventions=[
             human_approval,
         ],
+        session_manager=session_manager,
     )
 
 
