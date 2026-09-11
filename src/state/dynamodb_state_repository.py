@@ -62,6 +62,14 @@ class DynamoDBStateRepository(StateRepository):
             "sk": item_type,
         }
 
+    def _run_key(
+        self,
+        shipment_id: str,
+        run_id: str,
+        item_type: str,
+    ) -> dict:
+        return self._shipment_key(shipment_id, f"RUN#{run_id}#{item_type}")
+
     # RECOVERY APPROVAL
 
     def set_pending_recovery_approval(
@@ -73,15 +81,21 @@ class DynamoDBStateRepository(StateRepository):
             return
 
         shipment_id = approval["shipment_id"]
+        run_id = approval["run_id"]
 
         self.table.put_item(
             Item=self._to_dynamodb_compatible(
                 {
-                **self._shipment_key(
+                **self._run_key(
                     shipment_id,
+                    run_id,
                     "APPROVAL",
                 ),
                 "entity_type": "RECOVERY_APPROVAL",
+                "run_id": run_id,
+                "shipment_id": shipment_id,
+                "event_id": approval.get("event_id"),
+                "runtime_session_id": approval.get("runtime_session_id"),
                 "data": approval,
             }
         )
@@ -90,11 +104,13 @@ class DynamoDBStateRepository(StateRepository):
     def get_pending_recovery_approval(
         self,
         shipment_id: str,
+        run_id: str,
     ) -> dict | None:
 
         response = self.table.get_item(
-            Key=self._shipment_key(
+            Key=self._run_key(
                 shipment_id,
+                run_id,
                 "APPROVAL",
             )
         )
@@ -109,11 +125,13 @@ class DynamoDBStateRepository(StateRepository):
     def clear_pending_recovery_approval(
         self,
         shipment_id: str,
+        run_id: str,
     ) -> None:
 
         self.table.delete_item(
-            Key=self._shipment_key(
+            Key=self._run_key(
                 shipment_id,
+                run_id,
                 "APPROVAL",
             )
         )
@@ -123,19 +141,30 @@ class DynamoDBStateRepository(StateRepository):
     def set_recovery_workflow(
         self,
         shipment_id: str,
+        run_id: str,
         status: str,
         action: str | None = None,
+        event_id: str | None = None,
+        runtime_session_id: str | None = None,
     ) -> None:
 
         self.table.put_item(
             Item= self._to_dynamodb_compatible({
-                **self._shipment_key(
+                **self._run_key(
                     shipment_id,
+                    run_id,
                     "WORKFLOW",
                 ),
                 "entity_type": "RECOVERY_WORKFLOW",
+                "run_id": run_id,
+                "shipment_id": shipment_id,
+                "event_id": event_id,
+                "runtime_session_id": runtime_session_id,
                 "data": {
                     "shipment_id": shipment_id,
+                    "run_id": run_id,
+                    "event_id": event_id,
+                    "runtime_session_id": runtime_session_id,
                     "status": status,
                     "action": action,
                 },
@@ -145,11 +174,13 @@ class DynamoDBStateRepository(StateRepository):
     def get_recovery_workflow(
         self,
         shipment_id: str,
+        run_id: str,
     ) -> dict | None:
 
         response = self.table.get_item(
-            Key=self._shipment_key(
+            Key=self._run_key(
                 shipment_id,
+                run_id,
                 "WORKFLOW",
             )
         )
@@ -164,11 +195,13 @@ class DynamoDBStateRepository(StateRepository):
     def clear_recovery_workflow(
         self,
         shipment_id: str,
+        run_id: str,
     ) -> None:
 
         self.table.delete_item(
-            Key=self._shipment_key(
+            Key=self._run_key(
                 shipment_id,
+                run_id,
                 "WORKFLOW",
             )
         )
@@ -179,7 +212,10 @@ class DynamoDBStateRepository(StateRepository):
         self,
         event_type: str,
         shipment_id: str,
+        run_id: str,
         details: dict[str, Any] | None = None,
+        event_id: str | None = None,
+        runtime_session_id: str | None = None,
     ) -> dict:
 
         timestamp = datetime.now(
@@ -189,14 +225,18 @@ class DynamoDBStateRepository(StateRepository):
         event = {
             "event_type": event_type,
             "shipment_id": shipment_id,
+            "run_id": run_id,
+            "event_id": event_id,
+            "runtime_session_id": runtime_session_id,
             "timestamp": timestamp,
             "details": details or {},
         }
 
         self.table.put_item(
             Item= self._to_dynamodb_compatible({
-                **self._shipment_key(
+                **self._run_key(
                     shipment_id,
+                    run_id,
                     f"AUDIT#{timestamp}#{uuid4()}",
                 ),
                 "entity_type": "AUDIT_EVENT",
@@ -209,19 +249,22 @@ class DynamoDBStateRepository(StateRepository):
     def get_audit_events(
         self,
         shipment_id: str | None = None,
+        run_id: str | None = None,
     ) -> list[dict]:
 
         if shipment_id is None:
             raise ValueError(
                 "DynamoDB audit lookup requires a shipment_id."
             )
+        if run_id is None:
+            raise ValueError("DynamoDB audit lookup requires a run_id.")
 
         response = self.table.query(
             KeyConditionExpression=(
                 Key("pk").eq(
                     f"SHIPMENT#{shipment_id}"
                 )
-                & Key("sk").begins_with("AUDIT#")
+                & Key("sk").begins_with(f"RUN#{run_id}#AUDIT#")
             ),
             ScanIndexForward=True,
         )
@@ -230,6 +273,9 @@ class DynamoDBStateRepository(StateRepository):
             {
                 "event_type": item["event_type"],
                 "shipment_id": item["shipment_id"],
+                "run_id": item["run_id"],
+                "event_id": item.get("event_id"),
+                "runtime_session_id": item.get("runtime_session_id"),
                 "timestamp": item["timestamp"],
                 "details": item.get("details", {}),
             }

@@ -104,6 +104,9 @@ Execution and human authorization:
 def create_recovery_agent(
     state: OperationalState,
     session_manager: SessionManager | None = None,
+    run_id: str | None = None,
+    event_id: str | None = None,
+    runtime_session_id: str | None = None,
 ) -> Agent:
 
     model = BedrockModel(
@@ -121,7 +124,10 @@ def create_recovery_agent(
     )
 
     recovery_tools = create_recovery_tools(
-        state
+        state,
+        run_id=run_id,
+        event_id=event_id,
+        runtime_session_id=runtime_session_id,
     )
 
     human_approval = HumanInTheLoop(
@@ -220,8 +226,8 @@ if __name__ == "__main__":
     )
 
     print("\n=== RECOVERY WORKFLOW STATE ===")
-    print(state.get_recovery_workflow("SHP-0048"))
+    print(state.get_recovery_workflow("SHP-0048", "RUN-LOCAL"))
 
     print("\n=== AUDIT EVENTS ===")
-    for event in state.get_audit_events("SHP-0048"):
+    for event in state.get_audit_events("SHP-0048", "RUN-LOCAL"):
         print(event)

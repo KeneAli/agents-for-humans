@@ -7,7 +7,15 @@ from src.business.consequence_engine import ConsequenceEngine
 
 def create_recovery_tools(
     state: OperationalState,
+    run_id: str | None = None,
+    event_id: str | None = None,
+    runtime_session_id: str | None = None,
 ):
+
+    def require_run_id() -> str:
+        if not run_id:
+            raise ValueError("Recovery workflow requires a run_id.")
+        return run_id
 
     @tool
     def evaluate_recovery_options(
@@ -111,6 +119,8 @@ def create_recovery_tools(
                 }
             )
 
+        workflow_run_id = require_run_id()
+
         # Store the decision for the approval workflow
         feasible_options = [
             option
@@ -128,6 +138,9 @@ def create_recovery_tools(
         state.set_pending_recovery_approval(
             {
                 "shipment_id": shipment_id,
+                "run_id": workflow_run_id,
+                "event_id": event_id,
+                "runtime_session_id": runtime_session_id,
                 "selected_option": (
                     best_option["option_type"]
                     if best_option is not None
@@ -154,12 +167,15 @@ def create_recovery_tools(
 
         state.set_recovery_workflow(
             shipment_id=shipment_id,
+            run_id=workflow_run_id,
             status="AWAITING_APPROVAL",
             action=(
                 best_option["option_type"]
                 if best_option is not None
                 else None
             ),
+            event_id=event_id,
+            runtime_session_id=runtime_session_id,
         )
 
         # ----------------------------------------------------
@@ -169,6 +185,7 @@ def create_recovery_tools(
         state.record_audit_event(
             event_type="OPTIONS_EVALUATED",
             shipment_id=shipment_id,
+            run_id=workflow_run_id,
             details={
                 "selected_option": (
                     best_option["option_type"]
@@ -186,11 +203,14 @@ def create_recovery_tools(
                     ]
                 ),
             },
+            event_id=event_id,
+            runtime_session_id=runtime_session_id,
         )
 
         state.record_audit_event(
             event_type="RECOVERY_SELECTED",
             shipment_id=shipment_id,
+            run_id=workflow_run_id,
             details={
                 "option_type": (
                     best_option["option_type"]
@@ -203,6 +223,8 @@ def create_recovery_tools(
                     else None
                 ),
             },
+            event_id=event_id,
+            runtime_session_id=runtime_session_id,
         )
 
         return {
@@ -244,7 +266,8 @@ def create_recovery_tools(
             already calculated by the recovery workflow.
         """
 
-        approval = state.get_pending_recovery_approval(shipment_id)
+        workflow_run_id = require_run_id()
+        approval = state.get_pending_recovery_approval(shipment_id, workflow_run_id)
 
         if approval is None:
             return {
@@ -349,6 +372,7 @@ def create_recovery_tools(
                 ),
             }
 
+        workflow_run_id = require_run_id()
 
         # ----------------------------------------------------
         # Recalculate the current consequences
@@ -462,22 +486,31 @@ def create_recovery_tools(
         # ----------------------------------------------------
         state.set_recovery_workflow(
             shipment_id=shipment_id,
+            run_id=workflow_run_id,
             status="APPROVED",
             action=option_type,
+            event_id=event_id,
+            runtime_session_id=runtime_session_id,
         )
 
         state.record_audit_event(
             event_type="APPROVAL_GRANTED",
             shipment_id=shipment_id,
+            run_id=workflow_run_id,
             details={
                 "option_type": option_type,
             },
+            event_id=event_id,
+            runtime_session_id=runtime_session_id,
         )
 
         state.set_recovery_workflow(
             shipment_id=shipment_id,
+            run_id=workflow_run_id,
             status="EXECUTING",
             action=option_type,
+            event_id=event_id,
+            runtime_session_id=runtime_session_id,
         )
 
         # ----------------------------------------------------
@@ -505,6 +538,7 @@ def create_recovery_tools(
         state.record_audit_event(
             event_type="RECOVERY_EXECUTED",
             shipment_id=shipment_id,
+            run_id=workflow_run_id,
             details={
                 "option_type": option_type,
                 "recovery_cost_eur": float(
@@ -514,6 +548,8 @@ def create_recovery_tools(
                     selected_option.estimated_recovery_hours
                 ),
             },
+            event_id=event_id,
+            runtime_session_id=runtime_session_id,
         )
 
         # ----------------------------------------------------
@@ -539,6 +575,7 @@ def create_recovery_tools(
             state.record_audit_event(
                 event_type="STATE_VERIFIED",
                 shipment_id=shipment_id,
+                run_id=workflow_run_id,
                 details={
                     "shipment_status": (
                         verified_shipment[
@@ -551,18 +588,26 @@ def create_recovery_tools(
                         ]
                     ),
                 },
+                event_id=event_id,
+                runtime_session_id=runtime_session_id,
             )
 
             state.set_recovery_workflow(
                 shipment_id=shipment_id,
+                run_id=workflow_run_id,
                 status="COMPLETED",
                 action=option_type,
+                event_id=event_id,
+                runtime_session_id=runtime_session_id,
             )
         else:
             state.set_recovery_workflow(
                 shipment_id=shipment_id,
+                run_id=workflow_run_id,
                 status="FAILED",
                 action=option_type,
+                event_id=event_id,
+                runtime_session_id=runtime_session_id,
             )
 
         return {

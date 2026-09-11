@@ -19,6 +19,13 @@ def agent_invocation(payload, context):
     user_message = payload.get("prompt")
     interrupt_responses = payload.get("interrupt_responses")
     disruption_event = payload.get("disruption_event")
+    run_id = payload.get("run_id")
+    event_id = payload.get("event_id")
+
+    if (disruption_event is not None or interrupt_responses is not None) and (
+        not isinstance(run_id, str) or not run_id.strip()
+    ):
+        return {"error": "run_id must be a non-empty string for workflow requests."}
 
     # Resume an interrupted HITL request
     if interrupt_responses is not None:
@@ -88,6 +95,7 @@ def agent_invocation(payload, context):
             }
 
         canonical_event = processing_result["event"]
+        event_id = canonical_event["event_id"]
         agent_input = (
             f"Investigate shipment {canonical_event['shipment_id']} "
             "after this operational disruption and determine the best "
@@ -105,14 +113,19 @@ def agent_invocation(payload, context):
 
     request_session_id = getattr(context, "session_id", None)
     request_agent = agent
-    if request_session_id:
-        session_repository = DynamoDBSessionRepository()
+    if disruption_event is not None or interrupt_responses is not None:
+        session_manager = None
+        if request_session_id:
+            session_manager = RepositorySessionManager(
+                session_id=request_session_id,
+                session_repository=DynamoDBSessionRepository(),
+            )
         request_agent = create_recovery_agent(
             state,
-            session_manager=RepositorySessionManager(
-                session_id=request_session_id,
-                session_repository=session_repository,
-            ),
+            session_manager=session_manager,
+            run_id=run_id,
+            event_id=event_id,
+            runtime_session_id=request_session_id,
         )
 
     result = request_agent(agent_input)

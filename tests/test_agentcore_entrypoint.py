@@ -27,6 +27,12 @@ def make_event(**overrides):
     return event
 
 
+def workflow_payload(**overrides):
+    payload = {"run_id": "RUN-ENTRYPOINT-001"}
+    payload.update(overrides)
+    return payload
+
+
 def test_valid_disruption_event_reaches_centralized_processing(
     entrypoint_module,
     monkeypatch,
@@ -54,9 +60,14 @@ def test_valid_disruption_event_reaches_centralized_processing(
         )()
 
     monkeypatch.setattr(entrypoint_module, "agent", fake_agent)
+    monkeypatch.setattr(
+        entrypoint_module,
+        "create_recovery_agent",
+        lambda *args, **kwargs: fake_agent,
+    )
 
     response = entrypoint_module.agent_invocation(
-        {"disruption_event": make_event()},
+        workflow_payload(disruption_event=make_event()),
         None,
     )
 
@@ -80,9 +91,14 @@ def test_invalid_disruption_event_does_not_invoke_agent(
     )
     fake_agent = lambda prompt: pytest.fail("agent should not be invoked")
     monkeypatch.setattr(entrypoint_module, "agent", fake_agent)
+    monkeypatch.setattr(
+        entrypoint_module,
+        "create_recovery_agent",
+        lambda *args, **kwargs: fake_agent,
+    )
 
     response = entrypoint_module.agent_invocation(
-        {"disruption_event": make_event()},
+        workflow_payload(disruption_event=make_event()),
         None,
     )
 
@@ -110,7 +126,7 @@ def test_duplicate_disruption_event_does_not_invoke_agent(
     )
 
     response = entrypoint_module.agent_invocation(
-        {"disruption_event": make_event()},
+        workflow_payload(disruption_event=make_event()),
         None,
     )
 
@@ -155,13 +171,18 @@ def test_hitl_interrupt_responses_behavior_is_unchanged(
         )()
 
     monkeypatch.setattr(entrypoint_module, "agent", fake_agent)
+    monkeypatch.setattr(
+        entrypoint_module,
+        "create_recovery_agent",
+        lambda *args, **kwargs: fake_agent,
+    )
     interrupt_response = {
         "interruptId": "interrupt-1",
         "response": "yes",
     }
 
     response = entrypoint_module.agent_invocation(
-        {"interrupt_responses": [interrupt_response]},
+        workflow_payload(interrupt_responses=[interrupt_response]),
         None,
     )
 
@@ -177,12 +198,14 @@ def test_hitl_interrupt_responses_behavior_is_unchanged(
         {
             "prompt": "Investigate SHP-0048.",
             "disruption_event": make_event(),
+            "run_id": "RUN-ENTRYPOINT-001",
         },
         {
             "interrupt_responses": [
                 {"interruptId": "interrupt-1", "response": "yes"}
             ],
             "disruption_event": make_event(),
+            "run_id": "RUN-ENTRYPOINT-001",
         },
     ],
 )
@@ -190,3 +213,93 @@ def test_conflicting_input_modes_are_rejected(entrypoint_module, payload):
     response = entrypoint_module.agent_invocation(payload, None)
 
     assert "error" in response
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"disruption_event": make_event()},
+        {"interrupt_responses": [{"interruptId": "interrupt-1", "response": "yes"}]},
+        {"run_id": "", "disruption_event": make_event()},
+    ],
+)
+def test_workflow_requests_require_a_run_id(entrypoint_module, payload):
+    response = entrypoint_module.agent_invocation(payload, None)
+
+    assert response == {"error": "run_id must be a non-empty string for workflow requests."}
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        workflow_payload(disruption_event=make_event()),
+        workflow_payload(
+            event_id="SIM-ENTRYPOINT-001",
+            interrupt_responses=[{"interruptId": "interrupt-1", "response": "yes"}],
+        ),
+    ],
+)
+def test_workflow_run_identity_is_bound_to_the_request_agent(
+    entrypoint_module,
+    monkeypatch,
+    payload,
+):
+    monkeypatch.setattr(
+        entrypoint_module,
+        "apply_disruption_event",
+        lambda state, event: {"applied": True, "status": "applied", "event": make_event()},
+    )
+    captured = {}
+
+    def create_agent(*args, **kwargs):
+        captured.update(kwargs)
+        return lambda agent_input: type(
+            "Result", (), {"message": "ok", "stop_reason": "end_turn", "interrupts": []}
+        )()
+
+    monkeypatch.setattr(entrypoint_module, "create_recovery_agent", create_agent)
+    monkeypatch.setattr(entrypoint_module, "DynamoDBSessionRepository", lambda: object())
+    monkeypatch.setattr(
+        entrypoint_module,
+        "RepositorySessionManager",
+        lambda **kwargs: object(),
+    )
+
+    response = entrypoint_module.agent_invocation(
+        payload,
+        type("Context", (), {"session_id": "runtime-session-1"})(),
+    )
+
+    assert response["stop_reason"] == "end_turn"
+    assert captured["run_id"] == "RUN-ENTRYPOINT-001"
+    assert captured["runtime_session_id"] == "runtime-session-1"
+    assert captured["event_id"] == "SIM-ENTRYPOINT-001"
+
+
+def test_resume_without_context_session_id_still_binds_run_identity(
+    entrypoint_module,
+    monkeypatch,
+):
+    captured = {}
+
+    def create_agent(*args, **kwargs):
+        captured.update(kwargs)
+        return lambda agent_input: type(
+            "Result", (), {"message": "ok", "stop_reason": "end_turn", "interrupts": []}
+        )()
+
+    monkeypatch.setattr(entrypoint_module, "create_recovery_agent", create_agent)
+
+    response = entrypoint_module.agent_invocation(
+        workflow_payload(
+            event_id="SIM-ENTRYPOINT-001",
+            interrupt_responses=[{"interruptId": "interrupt-1", "response": "yes"}],
+        ),
+        None,
+    )
+
+    assert response["stop_reason"] == "end_turn"
+    assert captured["run_id"] == "RUN-ENTRYPOINT-001"
+    assert captured["event_id"] == "SIM-ENTRYPOINT-001"
+    assert captured["runtime_session_id"] is None
+    assert captured["session_manager"] is None

@@ -15,6 +15,7 @@ class StateRepository(ABC):
     def get_pending_recovery_approval(
         self,
         shipment_id: str,
+        run_id: str,
     ) -> dict | None:
         pass
 
@@ -22,6 +23,7 @@ class StateRepository(ABC):
     def clear_pending_recovery_approval(
         self,
         shipment_id: str,
+        run_id: str,
     ) -> None:
         pass
 
@@ -29,8 +31,11 @@ class StateRepository(ABC):
     def set_recovery_workflow(
         self,
         shipment_id: str,
+        run_id: str,
         status: str,
         action: str | None = None,
+        event_id: str | None = None,
+        runtime_session_id: str | None = None,
     ) -> None:
         pass
 
@@ -38,6 +43,7 @@ class StateRepository(ABC):
     def get_recovery_workflow(
         self,
         shipment_id: str,
+        run_id: str,
     ) -> dict | None:
         pass
 
@@ -45,6 +51,7 @@ class StateRepository(ABC):
     def clear_recovery_workflow(
         self,
         shipment_id: str,
+        run_id: str,
     ) -> None:
         pass
 
@@ -53,7 +60,10 @@ class StateRepository(ABC):
         self,
         event_type: str,
         shipment_id: str,
+        run_id: str,
         details: dict[str, Any] | None = None,
+        event_id: str | None = None,
+        runtime_session_id: str | None = None,
     ) -> None:
         pass
 
@@ -61,6 +71,7 @@ class StateRepository(ABC):
     def get_audit_events(
         self,
         shipment_id: str | None = None,
+        run_id: str | None = None,
     ) -> list[dict]:
         pass
 

@@ -92,19 +92,19 @@ class OperationalState:
         """
         self.repository.set_pending_recovery_approval(approval)
 
-    def get_pending_recovery_approval(self, shipment_id: str):
+    def get_pending_recovery_approval(self, shipment_id: str, run_id: str):
         """
         Return the recovery decision currently awaiting
         human approval.
         """
-        return self.repository.get_pending_recovery_approval(shipment_id)
+        return self.repository.get_pending_recovery_approval(shipment_id, run_id)
 
-    def clear_pending_recovery_approval(self, shipment_id: str):
+    def clear_pending_recovery_approval(self, shipment_id: str, run_id: str):
         """
         Clear the pending approval after the decision has
         been handled.
         """
-        self.repository.clear_pending_recovery_approval(shipment_id)
+        self.repository.clear_pending_recovery_approval(shipment_id, run_id)
 
     # ========================================================
     # RECOVERY WORKFLOW
@@ -113,8 +113,11 @@ class OperationalState:
     def set_recovery_workflow(
         self,
         shipment_id: str,
+        run_id: str,
         status: str,
         action: str | None = None,
+        event_id: str | None = None,
+        runtime_session_id: str | None = None,
     ):
         """
         Store the current recovery workflow state for a shipment.
@@ -123,27 +126,32 @@ class OperationalState:
         """
         self.repository.set_recovery_workflow(
             shipment_id=shipment_id,
+            run_id=run_id,
             status=status,
             action=action,
+            event_id=event_id,
+            runtime_session_id=runtime_session_id,
         )
 
     def get_recovery_workflow(
         self,
         shipment_id: str,
+        run_id: str,
     ):
         """
         Return the current recovery workflow state.
         """
-        return self.repository.get_recovery_workflow(shipment_id)
+        return self.repository.get_recovery_workflow(shipment_id, run_id)
 
     def clear_recovery_workflow(
         self,
         shipment_id: str,
+        run_id: str,
     ):
         """
         Remove the recovery workflow state for a shipment.
         """
-        self.repository.clear_recovery_workflow(shipment_id)
+        self.repository.clear_recovery_workflow(shipment_id, run_id)
 
     # ========================================================
     # AUDIT TRAIL
@@ -153,7 +161,10 @@ class OperationalState:
         self,
         event_type: str,
         shipment_id: str,
+        run_id: str,
         details: dict | None = None,
+        event_id: str | None = None,
+        runtime_session_id: str | None = None,
     ):
         """
         Record an agent/system event in the audit trail.
@@ -176,12 +187,16 @@ class OperationalState:
         return self.repository.record_audit_event(
             event_type=event_type,
             shipment_id=shipment_id,
+            run_id=run_id,
             details=details,
+            event_id=event_id,
+            runtime_session_id=runtime_session_id,
         )
 
     def get_audit_events(
         self,
         shipment_id: str | None = None,
+        run_id: str | None = None,
     ):
         """
         Return audit events, optionally filtered by shipment.
@@ -191,7 +206,8 @@ class OperationalState:
         #     return self.audit_events
 
         return self.repository.get_audit_events(
-            shipment_id=shipment_id
+            shipment_id=shipment_id,
+            run_id=run_id,
         )
 
     # ========================================================
