@@ -27,56 +27,64 @@ function AgentPanel({
   const panelContent = {
     MONITORING: {
       icon: CircleDot,
-      title: "Monitoring",
+      title: "SCÉANCE Activity",
+      subtitle: "Monitoring",
       description:
-        "SCÉANCE is monitoring the shipment for changes that may require attention.",
+        "SCÉANCE is actively monitoring the network for disruptions.",
     },
 
     INVESTIGATING: {
       icon: LoaderCircle,
-      title: "Investigation in progress",
+      title: "SCÉANCE Activity",
+      subtitle: "Investigation in progress",
       description:
-        "SCÉANCE is reviewing the shipment context, disruption details and available recovery options.",
+        "SCÉANCE is analyzing shipment context, delay consequences, and recovery options.",
     },
 
     AWAITING_APPROVAL: {
       icon: TriangleAlert,
-      title: "Approval required",
+      title: "SCÉANCE Activity",
+      subtitle: "Approval required",
       description:
-        "SCÉANCE has found a recovery option and is waiting for a human decision.",
+        "SCÉANCE evaluated recovery options and is waiting for human authorization.",
     },
 
     EXECUTING: {
       icon: LoaderCircle,
-      title: "Recovery in progress",
+      title: "SCÉANCE Activity",
+      subtitle: "Recovery in progress",
       description:
-        "Approval has been received. SCÉANCE is executing the selected recovery workflow.",
+        "Authorization received. SCÉANCE is executing the approved recovery action.",
     },
 
     VERIFYING: {
       icon: ShieldCheck,
-      title: "Verifying recovery",
+      title: "SCÉANCE Activity",
+      subtitle: "Verifying state",
       description:
-        "SCÉANCE is checking the resulting operational state to confirm that the recovery succeeded.",
+        "SCÉANCE is verifying the resulting operational state in the supply chain.",
     },
 
     RESOLVED: {
       icon: CheckCircle2,
-      title: "Recovery verified",
+      title: "SCÉANCE Activity",
+      subtitle: "Recovery verified",
       description:
-        "The recovery workflow completed successfully and the resulting operational state has been verified.",
+        "The recovery workflow completed and operational state has been verified.",
     },
 
     NO_ACTION: {
       icon: CheckCircle2,
-      title: "No action required",
+      title: "SCÉANCE Activity",
+      subtitle: "No action required",
       description:
         "SCÉANCE investigated the disruption and determined that no recovery action is required.",
     },
 
     REJECTED: {
       icon: TriangleAlert,
-      title: "Recommendation rejected",
+      title: "SCÉANCE Activity",
+      subtitle: "Recommendation rejected",
       description:
         "The operator declined the proposed recovery action. No recovery workflow was executed.",
     },
@@ -85,6 +93,7 @@ function AgentPanel({
     {
       icon: typeof CircleDot
       title: string
+      subtitle: string
       description: string
     }
   >
@@ -100,14 +109,29 @@ function AgentPanel({
   return (
     <div className="rounded-2xl border border-border bg-card">
       <div className="border-b border-border px-6 py-5">
-        <div className="flex items-center gap-2">
-          <Icon
-            className={`size-4 ${
-              isProcessing ? "animate-spin" : ""
-            }`}
-          />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <h2 className="font-medium">{content.title}</h2>
+          </div>
 
-          <h2 className="font-medium">{content.title}</h2>
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${
+              status === "RESOLVED"
+                ? "bg-emerald-500/10 text-emerald-500"
+                : status === "AWAITING_APPROVAL"
+                  ? "bg-amber-500/10 text-amber-500"
+                  : status === "REJECTED"
+                    ? "bg-destructive/10 text-destructive"
+                    : "bg-muted text-muted-foreground"
+            }`}
+          >
+            <Icon
+              className={`size-3 ${
+                isProcessing ? "animate-spin text-foreground" : ""
+              }`}
+            />
+            <span>{content.subtitle}</span>
+          </span>
         </div>
 
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
@@ -116,29 +140,20 @@ function AgentPanel({
       </div>
 
       {status === "AWAITING_APPROVAL" && (
-        <div className="space-y-5 px-6 py-6">
-          <div>
-            <p className="text-xs text-muted-foreground">
-              Recommended action
-            </p>
-
-            <p className="mt-2 text-sm font-medium">
-              Execute selected recovery workflow
-            </p>
+        <div className="space-y-4 border-b border-border bg-amber-500/5 px-6 py-5">
+          <div className="flex items-start gap-3 rounded-xl border border-amber-500/20 bg-background/80 p-3.5">
+            <ShieldCheck className="mt-0.5 size-4 shrink-0 text-amber-500" />
+            <div className="text-xs leading-relaxed text-muted-foreground">
+              <strong className="font-semibold text-foreground">Human Authorization Required:</strong>{" "}
+              The agent cannot execute this recovery without explicit operator approval.
+            </div>
           </div>
 
-          <div className="flex items-start gap-3 rounded-xl bg-muted/50 p-4">
-            <ShieldCheck className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
-
-            <p className="text-xs leading-5 text-muted-foreground">
-              The agent cannot execute this recovery without
-              explicit operator approval.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Clock className="size-3.5" />
-            Approval window is active
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <Clock className="size-3.5" />
+              Approval window active
+            </span>
           </div>
 
           <Button className="w-full" onClick={onOpenApproval}>
@@ -151,80 +166,35 @@ function AgentPanel({
       <AgentActivity status={status} items={activity} />
 
       {status === "INVESTIGATING" && (
-        <div className="px-6 py-6">
-          <p className="text-xs text-muted-foreground">
+        <div className="border-t border-border/60 px-6 py-4">
+          <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
             Current activity
           </p>
-
-          <p className="mt-2 text-sm">
+          <p className="mt-1 text-xs text-foreground">
             Evaluating shipment context and recovery constraints…
           </p>
         </div>
       )}
 
       {status === "EXECUTING" && (
-        <div className="px-6 py-6">
-          <p className="text-xs text-muted-foreground">
+        <div className="border-t border-border/60 px-6 py-4">
+          <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
             Current activity
           </p>
-
-          <p className="mt-2 text-sm">
+          <p className="mt-1 text-xs text-foreground">
             Executing the selected recovery workflow…
           </p>
         </div>
       )}
 
       {status === "VERIFYING" && (
-        <div className="px-6 py-6">
-          <p className="text-xs text-muted-foreground">
+        <div className="border-t border-border/60 px-6 py-4">
+          <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
             Current activity
           </p>
-
-          <p className="mt-2 text-sm">
+          <p className="mt-1 text-xs text-foreground">
             Checking the shipment's resulting operational state…
           </p>
-        </div>
-      )}
-
-      {status === "RESOLVED" && (
-        <div className="px-6 py-6">
-          <div className="rounded-xl bg-muted/50 p-4">
-            <p className="text-xs text-muted-foreground">
-              Outcome
-            </p>
-
-            <p className="mt-2 text-sm font-medium">
-              Shipment recovered
-            </p>
-          </div>
-        </div>
-      )}
-
-      {status === "NO_ACTION" && (
-        <div className="px-6 py-6">
-          <div className="rounded-xl bg-muted/50 p-4">
-            <p className="text-xs text-muted-foreground">
-              Outcome
-            </p>
-
-            <p className="mt-2 text-sm font-medium">
-              No recovery action required
-            </p>
-          </div>
-        </div>
-      )}
-
-      {status === "REJECTED" && (
-        <div className="px-6 py-6">
-          <div className="rounded-xl bg-muted/50 p-4">
-            <p className="text-xs text-muted-foreground">
-              Outcome
-            </p>
-
-            <p className="mt-2 text-sm font-medium">
-              Recovery was not executed
-            </p>
-          </div>
         </div>
       )}
     </div>

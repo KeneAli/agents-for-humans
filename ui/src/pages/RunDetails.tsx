@@ -14,13 +14,37 @@ import type { AgentStatus } from "@/types/run"
 
 type TimelineState = "completed" | "current" | "pending" | "not-applicable"
 
-const recoverySteps = [
-  { key: "OPTIONS_EVALUATED", title: "Agent investigated", description: "Shipment context and recovery options were evaluated." },
-  { key: "RECOVERY_SELECTED", title: "Recovery recommended", description: "The best available recovery option was selected." },
-  { key: "APPROVAL_GRANTED", title: "Human decision", description: "The recommended recovery is awaiting an operator decision." },
-  { key: "RECOVERY_EXECUTED", title: "Recovery execution", description: "The authorized recovery action will execute after approval." },
-  { key: "STATE_VERIFIED", title: "Verification", description: "The resulting shipment state will be verified after execution." },
-  { key: "RESOLVED", title: "Resolved", description: "The recovery workflow completes after verification." },
+const timelineSequence = [
+  {
+    key: "OPTIONS_EVALUATED",
+    title: "Agent investigated",
+    description: "Shipment context and recovery options were evaluated.",
+  },
+  {
+    key: "RECOVERY_SELECTED",
+    title: "Recovery recommended",
+    description: "The best available recovery option was selected.",
+  },
+  {
+    key: "APPROVAL_GRANTED",
+    title: "Human decision",
+    description: "The recommended recovery is awaiting an operator decision.",
+  },
+  {
+    key: "RECOVERY_EXECUTED",
+    title: "Recovery execution",
+    description: "The authorized recovery action will execute after approval.",
+  },
+  {
+    key: "STATE_VERIFIED",
+    title: "Verification",
+    description: "The resulting shipment state will be verified after execution.",
+  },
+  {
+    key: "RESOLVED",
+    title: "Resolved",
+    description: "The recovery workflow completes after verification.",
+  },
 ]
 
 function label(value: string) {
@@ -37,25 +61,51 @@ function toAgentStatus(workflowStatus?: string, approvalStatus?: string, action?
   return "INVESTIGATING"
 }
 
+function getActiveTimelineKey(auditKeys: Set<string>, agentStatus: AgentStatus): string | null {
+  if (agentStatus === "RESOLVED" || agentStatus === "REJECTED" || agentStatus === "NO_ACTION") {
+    return null
+  }
+  if (!auditKeys.has("OPTIONS_EVALUATED")) return "OPTIONS_EVALUATED"
+  if (!auditKeys.has("RECOVERY_SELECTED")) return "RECOVERY_SELECTED"
+  if (agentStatus === "AWAITING_APPROVAL" || !auditKeys.has("APPROVAL_GRANTED")) return "APPROVAL_GRANTED"
+  if (agentStatus === "EXECUTING" || !auditKeys.has("RECOVERY_EXECUTED")) return "RECOVERY_EXECUTED"
+  if (!auditKeys.has("STATE_VERIFIED")) return "STATE_VERIFIED"
+  return "RESOLVED"
+}
+
 function stateForStep(
   stepKey: string,
   hasAudit: boolean,
   auditKeys: Set<string>,
   agentStatus: AgentStatus,
 ): TimelineState {
-  if (hasAudit || (stepKey === "RESOLVED" && agentStatus === "RESOLVED")) return "completed"
+  if (agentStatus === "RESOLVED") {
+    return "completed"
+  }
   if (agentStatus === "REJECTED") {
-    if (stepKey === "APPROVAL_GRANTED") return "completed"
-    if (["RECOVERY_EXECUTED", "STATE_VERIFIED"].includes(stepKey)) return "not-applicable"
-    if (stepKey === "RESOLVED") return "completed"
+    if (["OPTIONS_EVALUATED", "RECOVERY_SELECTED", "APPROVAL_GRANTED", "RESOLVED"].includes(stepKey)) {
+      return "completed"
+    }
+    return "not-applicable"
   }
   if (agentStatus === "NO_ACTION") {
-    if (["APPROVAL_GRANTED", "RECOVERY_EXECUTED", "STATE_VERIFIED"].includes(stepKey)) return "not-applicable"
-    if (stepKey === "RESOLVED") return "completed"
+    if (["OPTIONS_EVALUATED", "RECOVERY_SELECTED", "RESOLVED"].includes(stepKey)) {
+      return "completed"
+    }
+    return "not-applicable"
   }
-  if (stepKey === "OPTIONS_EVALUATED" && !auditKeys.has("OPTIONS_EVALUATED")) return "current"
-  const firstMissing = recoverySteps.find((step) => !auditKeys.has(step.key))
-  return firstMissing?.key === stepKey ? "current" : "pending"
+
+  const activeKey = getActiveTimelineKey(auditKeys, agentStatus)
+  if (stepKey === activeKey) return "current"
+
+  const stepOrder = ["OPTIONS_EVALUATED", "RECOVERY_SELECTED", "APPROVAL_GRANTED", "RECOVERY_EXECUTED", "STATE_VERIFIED", "RESOLVED"]
+  const activeIndex = activeKey ? stepOrder.indexOf(activeKey) : -1
+  const thisIndex = stepOrder.indexOf(stepKey)
+
+  if (hasAudit || (activeIndex !== -1 && thisIndex < activeIndex)) {
+    return "completed"
+  }
+  return "pending"
 }
 
 function activityForRun(
@@ -63,78 +113,170 @@ function activityForRun(
   auditEvents: Array<{ event_type: string; timestamp: string }>,
 ): ActivityItem[] {
   const byType = new Map(auditEvents.map((event) => [event.event_type, event]))
-  const definitions = [
+  const auditKeys = new Set(byType.keys())
+
+  const traceDefinitions = [
     {
-      started: "SHIPMENT_CONTEXT_REVIEW_STARTED",
-      completed: "SHIPMENT_CONTEXT_REVIEWED",
-      label: "Shipment context reviewed",
+      key: "CONTEXT",
+      startedEvent: "SHIPMENT_CONTEXT_REVIEW_STARTED",
+      completedEvent: "SHIPMENT_CONTEXT_REVIEWED",
+      completedLabel: "Shipment context reviewed",
       activeLabel: "Reviewing shipment context",
       description: "Checking current shipment status and delivery window.",
     },
     {
-      started: "DELAY_IMPACT_ASSESSMENT_STARTED",
-      completed: "DELAY_IMPACT_ASSESSED",
-      label: "Delay impact assessed",
+      key: "IMPACT",
+      startedEvent: "DELAY_IMPACT_ASSESSMENT_STARTED",
+      completedEvent: "DELAY_IMPACT_ASSESSED",
+      completedLabel: "Delay impact assessed",
       activeLabel: "Assessing delay impact",
       description: "Calculating expected impact on delivery.",
     },
     {
-      started: "RECOVERY_OPTIONS_EVALUATION_STARTED",
-      completed: "OPTIONS_EVALUATED",
-      label: "Recovery options evaluated",
+      key: "OPTIONS",
+      startedEvent: "RECOVERY_OPTIONS_EVALUATION_STARTED",
+      completedEvent: "OPTIONS_EVALUATED",
+      completedLabel: "Recovery options evaluated",
       activeLabel: "Evaluating recovery options",
       description: "Comparing available recovery strategies.",
     },
     {
-      completed: "RECOMMENDATION_PREPARED",
-      label: "Recovery recommendation prepared",
+      key: "RECOMMENDATION",
+      startedEvent: null,
+      completedEvent: "RECOMMENDATION_PREPARED",
+      completedLabel: "Recovery recommendation prepared",
       activeLabel: "Preparing recommendation",
-      description: "Preparing the selected action for operator review.",
+      description: "Preparing selected action for operator review.",
     },
     {
-      completed: "APPROVAL_REQUESTED",
-      label: "Awaiting operator approval",
+      key: "APPROVAL",
+      startedEvent: null,
+      completedEvent: "APPROVAL_REQUESTED",
+      completedLabel: "Awaiting operator approval",
       activeLabel: "Awaiting operator approval",
-      description: "Waiting for an operator decision before recovery can proceed.",
+      description: "Waiting for operator authorization.",
     },
     {
-      started: "RECOVERY_EXECUTION_STARTED",
-      completed: "RECOVERY_EXECUTED",
-      label: "Recovery workflow completed",
-      activeLabel: "Executing selected recovery",
+      key: "EXECUTION",
+      startedEvent: "RECOVERY_EXECUTION_STARTED",
+      completedEvent: "RECOVERY_EXECUTED",
+      completedLabel: "Recovery executed",
+      activeLabel: "Executing recovery action",
       description: "Applying the authorized recovery action.",
     },
     {
-      started: "VERIFICATION_STARTED",
-      completed: "VERIFICATION_COMPLETED",
-      label: "Shipment state verified",
-      activeLabel: "Verifying recovery",
-      description: "Checking the resulting shipment state.",
+      key: "VERIFICATION",
+      startedEvent: "VERIFICATION_STARTED",
+      completedEvent: "VERIFICATION_COMPLETED",
+      completedLabel: "Shipment state verified",
+      activeLabel: "Verifying shipment state",
+      description: "Checking resulting operational state.",
     },
   ]
 
-  const items: ActivityItem[] = []
-  for (const definition of definitions) {
-    const completed = byType.get(definition.completed)
-    if (completed) {
-      items.push({ label: definition.label, description: definition.description, state: "completed", timestamp: completed.timestamp })
-      continue
+  // Terminal scenarios
+  if (agentStatus === "REJECTED") {
+    const items: ActivityItem[] = []
+    for (const def of traceDefinitions.slice(0, 4)) {
+      const completed = byType.get(def.completedEvent)
+      items.push({
+        label: def.completedLabel,
+        description: def.description,
+        state: "completed",
+        timestamp: completed?.timestamp,
+      })
     }
-    const started = definition.started ? byType.get(definition.started) : undefined
-    if (started) {
-      items.push({ label: definition.activeLabel, description: definition.description, state: "current", timestamp: started.timestamp })
-    }
+    const approvalAudit = byType.get("APPROVAL_REQUESTED") ?? byType.get("RECOVERY_REJECTED")
+    items.push({
+      label: "Operator declined recommendation",
+      description: "Recovery execution was bypassed per human override.",
+      state: "completed",
+      timestamp: approvalAudit?.timestamp,
+    })
+    return items
   }
 
-  if (agentStatus === "REJECTED") {
-    items.push({ label: "Operator declined recommendation", state: "completed" })
-  }
   if (agentStatus === "NO_ACTION") {
-    items.push({ label: "No recovery required", state: "completed" })
+    const items: ActivityItem[] = []
+    for (const def of traceDefinitions.slice(0, 4)) {
+      const completed = byType.get(def.completedEvent)
+      items.push({
+        label: def.completedLabel,
+        description: def.description,
+        state: "completed",
+        timestamp: completed?.timestamp,
+      })
+    }
+    items.push({
+      label: "No recovery required",
+      description: "Disruption delay is within SLA tolerance.",
+      state: "completed",
+      timestamp: byType.get("RECOMMENDATION_PREPARED")?.timestamp,
+    })
+    return items
   }
-  if (items.length === 0 && agentStatus === "INVESTIGATING") {
-    return [{ label: "Investigation started", description: "Waiting for the first operational activity event.", state: "current" }]
+
+  if (agentStatus === "RESOLVED") {
+    const items: ActivityItem[] = []
+    for (const def of traceDefinitions) {
+      const completed = byType.get(def.completedEvent)
+      items.push({
+        label: def.completedLabel,
+        description: def.description,
+        state: "completed",
+        timestamp: completed?.timestamp,
+      })
+    }
+    return items
   }
+
+  // Active / in-progress run
+  let activeIndex = 0
+  if (!auditKeys.has("SHIPMENT_CONTEXT_REVIEWED")) {
+    activeIndex = 0
+  } else if (!auditKeys.has("DELAY_IMPACT_ASSESSED")) {
+    activeIndex = 1
+  } else if (!auditKeys.has("OPTIONS_EVALUATED")) {
+    activeIndex = 2
+  } else if (!auditKeys.has("RECOMMENDATION_PREPARED")) {
+    activeIndex = 3
+  } else if (agentStatus === "AWAITING_APPROVAL" || !auditKeys.has("APPROVAL_GRANTED")) {
+    activeIndex = 4
+  } else if (!auditKeys.has("RECOVERY_EXECUTED")) {
+    activeIndex = 5
+  } else if (!auditKeys.has("VERIFICATION_COMPLETED") && !auditKeys.has("STATE_VERIFIED")) {
+    activeIndex = 6
+  } else {
+    activeIndex = 7
+  }
+
+  const items: ActivityItem[] = []
+  traceDefinitions.forEach((def, index) => {
+    if (index < activeIndex) {
+      const completed = byType.get(def.completedEvent)
+      items.push({
+        label: def.completedLabel,
+        description: def.description,
+        state: "completed",
+        timestamp: completed?.timestamp,
+      })
+    } else if (index === activeIndex) {
+      const started = def.startedEvent ? byType.get(def.startedEvent) : undefined
+      items.push({
+        label: def.activeLabel,
+        description: def.description,
+        state: "current",
+        timestamp: started?.timestamp,
+      })
+    } else {
+      items.push({
+        label: def.completedLabel,
+        description: def.description,
+        state: "pending",
+      })
+    }
+  })
+
   return items
 }
 
@@ -215,7 +357,7 @@ function RunDetails() {
       state: "completed" as TimelineState,
       time: run?.approval?.created_at ?? run?.workflow?.event_id,
     },
-    ...recoverySteps.map((step) => {
+    ...timelineSequence.map((step) => {
       const audit = auditByType.get(step.key)
       const state = run
         ? stateForStep(step.key, Boolean(audit), auditKeys, agentStatus)
@@ -253,7 +395,7 @@ function RunDetails() {
   ]
 
   return (
-    <div className="mx-auto max-w-5xl px-6 py-10 lg:px-8">
+    <div className="mx-auto max-w-7xl px-6 py-10 lg:px-8">
       <Link to="/" className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground">
         <ArrowLeft className="size-4" />
         Operations
@@ -268,7 +410,7 @@ function RunDetails() {
         <div className="mt-5 flex flex-col justify-between gap-6 md:flex-row md:items-end">
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-4xl font-semibold tracking-tight">{shipment?.route.replace("->", "→") ?? "Operational disruption"}</h1>
+              <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">{shipment?.route.replace("->", "→") ?? "Operational disruption"}</h1>
               <span className="inline-flex items-center gap-2 rounded-full border border-border bg-muted/40 px-3 py-1 text-xs font-medium">
                 <Circle className="size-2 fill-current" />
                 {label(agentStatus)}
@@ -291,9 +433,10 @@ function RunDetails() {
         </div>
       </header>
 
-      <div className="mt-10 grid gap-8 lg:grid-cols-[1fr_360px]">
-        <section>
-          <div className="rounded-2xl border border-border bg-card">
+      {/* Side-by-Side: Recovery Timeline (~60%) & SCÉANCE Activity (~40%) */}
+      <div className="mt-10 grid grid-cols-1 gap-8 lg:grid-cols-12 lg:items-center">
+        <section className="lg:col-span-7">
+          <div className="h-full rounded-2xl border border-border bg-card">
             <div className="border-b border-border px-6 py-5">
               <h2 className="font-medium">Recovery timeline</h2>
               <p className="mt-1 text-sm text-muted-foreground">Observable operational actions and results.</p>
@@ -305,17 +448,40 @@ function RunDetails() {
                 const isCurrent = event.state === "current"
                 return (
                   <div key={event.key} className="relative flex gap-4">
-                    {!isLast && <div className={`absolute left-[7px] top-5 h-full w-px ${isComplete ? "bg-foreground/20" : "bg-border"}`} />}
+                    {!isLast && (
+                      <div className={`absolute left-[7px] top-5 h-full w-px ${isComplete ? "bg-foreground/20" : "bg-border"}`} />
+                    )}
                     <div className="relative z-10 flex size-4 shrink-0 items-center justify-center">
-                      {isComplete ? <div className="flex size-4 items-center justify-center rounded-full bg-foreground text-background"><Check className="size-2.5" strokeWidth={3} /></div> : isCurrent ? <div className="flex size-4 items-center justify-center rounded-full border-2 border-foreground bg-background"><div className="size-1.5 rounded-full bg-foreground" /></div> : <div className="size-3 rounded-full border border-border bg-background" />}
+                      {isComplete ? (
+                        <span className="flex size-4 shrink-0 items-center justify-center rounded-full bg-foreground text-background">
+                          <Check className="size-2.5" strokeWidth={3} />
+                        </span>
+                      ) : isCurrent ? (
+                        <span className="relative flex size-4 shrink-0 items-center justify-center">
+                          <span className="absolute size-3.5 rounded-full bg-emerald-500/25 animate-pulse" />
+                          <span className="relative size-2 rounded-full bg-emerald-500" />
+                        </span>
+                      ) : event.state === "not-applicable" ? (
+                        <span className="flex size-4 shrink-0 items-center justify-center">
+                          <span className="size-2 rounded-full bg-muted-foreground/20" />
+                        </span>
+                      ) : (
+                        <span className="flex size-4 shrink-0 items-center justify-center">
+                          <span className="size-2.5 rounded-full border border-border bg-background" />
+                        </span>
+                      )}
                     </div>
                     <div className="pb-9">
                       <div className="flex flex-wrap items-center gap-3">
-                        <h3 className={`text-sm font-medium ${event.state === "pending" || event.state === "not-applicable" ? "text-muted-foreground" : ""}`}>{event.title}</h3>
+                        <h3 className={`text-sm ${isCurrent ? "font-semibold text-foreground" : isComplete ? "font-medium text-foreground" : "text-muted-foreground"}`}>
+                          {event.title}
+                        </h3>
                         {event.state === "not-applicable" && <span className="text-xs text-muted-foreground">Not required</span>}
                         {event.time && event.key !== "DISRUPTION_DETECTED" && <span className="text-xs text-muted-foreground">{new Date(event.time).toLocaleString()}</span>}
                       </div>
-                      <p className="mt-1 max-w-xl text-sm leading-6 text-muted-foreground">{event.description}</p>
+                      <p className={`mt-1 max-w-xl text-sm leading-6 ${isCurrent ? "text-foreground/90" : "text-muted-foreground"}`}>
+                        {event.description}
+                      </p>
                     </div>
                   </div>
                 )
@@ -324,7 +490,7 @@ function RunDetails() {
           </div>
         </section>
 
-        <aside>
+        <aside className="self-center lg:col-span-5">
           <AgentPanel status={agentStatus} activity={activity} onOpenApproval={() => setDismissedApprovalRunId(undefined)} />
           {decisionMutation.isError && <p className="mt-3 text-sm text-destructive">{decisionMutation.error.message}</p>}
         </aside>
