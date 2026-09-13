@@ -194,6 +194,7 @@ def simulate_disruption(
     shipment_id: str,
     event_type: str,
     delay_minutes: int,
+    severity: str = "HIGH",
 ):
     """
     Inject a generic runtime operational disruption.

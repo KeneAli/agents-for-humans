@@ -11,6 +11,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
+import type { Shipment } from "@/lib/api"
 
 export interface SimulationConfig {
   shipmentId: string
@@ -18,25 +19,6 @@ export interface SimulationConfig {
   delayMinutes: number
   severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL"
 }
-
-const shipments = [
-  {
-    id: "SHP-0048",
-    route: "Lagos → Accra",
-  },
-  {
-    id: "SHP-0127",
-    route: "Abidjan → Lagos",
-  },
-  {
-    id: "SHP-0214",
-    route: "Accra → Kumasi",
-  },
-  {
-    id: "SHP-0319",
-    route: "Lagos → Ibadan",
-  },
-]
 
 const disruptions = [
   {
@@ -71,21 +53,31 @@ function getSeverity(
 }
 
 interface SimulationDialogProps {
-  onSimulate: (config: SimulationConfig) => void
+  shipments: Shipment[]
+  isLoadingShipments: boolean
+  shipmentError?: string
+  submissionError?: string
+  onSimulate: (config: SimulationConfig) => Promise<void>
+  isSubmitting: boolean
 }
 
 function SimulationDialog({
+  shipments,
+  isLoadingShipments,
+  shipmentError,
+  submissionError,
   onSimulate,
+  isSubmitting,
 }: SimulationDialogProps) {
   const [open, setOpen] = useState(false)
-  const [shipmentId, setShipmentId] = useState("SHP-0048")
+  const [shipmentId, setShipmentId] = useState("")
   const [disruptionType, setDisruptionType] = useState(
     "VEHICLE_BREAKDOWN",
   )
   const [delayMinutes, setDelayMinutes] = useState(480)
 
   const selectedShipment = shipments.find(
-    (shipment) => shipment.id === shipmentId,
+    (shipment) => shipment.shipment_id === shipmentId,
   )
 
   const severity = useMemo(
@@ -93,8 +85,10 @@ function SimulationDialog({
     [delayMinutes],
   )
 
-  const handleSimulate = () => {
-    onSimulate({
+  const handleSimulate = async () => {
+    if (!shipmentId) return
+
+    await onSimulate({
       shipmentId,
       disruptionType,
       delayMinutes,
@@ -139,9 +133,12 @@ function SimulationDialog({
               }
               className="mt-2 flex h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
             >
+              <option value="" disabled>
+                {isLoadingShipments ? "Loading shipments..." : "Select a shipment"}
+              </option>
               {shipments.map((shipment) => (
-                <option key={shipment.id} value={shipment.id}>
-                  {shipment.id} — {shipment.route}
+                <option key={shipment.shipment_id} value={shipment.shipment_id}>
+                  {shipment.shipment_id} - {shipment.origin} → {shipment.destination}
                 </option>
               ))}
             </select>
@@ -224,12 +221,18 @@ function SimulationDialog({
               </p>
 
               <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                {selectedShipment?.id} will be marked as
+                {selectedShipment?.shipment_id ?? "The selected shipment"} will be marked as
                 disrupted and SCÉANCE will begin investigating
                 the event.
               </p>
             </div>
           </div>
+
+          {(shipmentError || submissionError) && (
+            <p className="text-sm text-destructive">
+              {shipmentError ?? submissionError}
+            </p>
+          )}
         </div>
 
         <DialogFooter>
@@ -240,9 +243,12 @@ function SimulationDialog({
             Cancel
           </Button>
 
-          <Button onClick={handleSimulate}>
+          <Button
+            onClick={handleSimulate}
+            disabled={!shipmentId || isLoadingShipments || Boolean(shipmentError) || isSubmitting}
+          >
             <Radio className="size-4" />
-            Trigger disruption
+            {isSubmitting ? "Starting..." : "Trigger disruption"}
           </Button>
         </DialogFooter>
       </DialogContent>

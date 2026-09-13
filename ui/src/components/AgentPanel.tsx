@@ -9,14 +9,21 @@ import {
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import AgentActivity, { type ActivityItem } from "@/components/AgentActivity"
 
 import type { AgentStatus } from "@/types/run"
 
 interface AgentPanelProps {
   status: AgentStatus
+  activity: ActivityItem[]
+  onOpenApproval?: () => void
 }
 
-function AgentPanel({ status }: AgentPanelProps) {
+function AgentPanel({
+  status,
+  activity,
+  onOpenApproval,
+}: AgentPanelProps) {
   const panelContent = {
     MONITORING: {
       icon: CircleDot,
@@ -65,6 +72,13 @@ function AgentPanel({ status }: AgentPanelProps) {
       title: "No action required",
       description:
         "SCÉANCE investigated the disruption and determined that no recovery action is required.",
+    },
+
+    REJECTED: {
+      icon: TriangleAlert,
+      title: "Recommendation rejected",
+      description:
+        "The operator declined the proposed recovery action. No recovery workflow was executed.",
     },
   } satisfies Record<
     AgentStatus,
@@ -127,16 +141,14 @@ function AgentPanel({ status }: AgentPanelProps) {
             Approval window is active
           </div>
 
-          <Button className="w-full">
+          <Button className="w-full" onClick={onOpenApproval}>
             <UserRound className="size-4" />
-            Approve recovery
-          </Button>
-
-          <Button variant="outline" className="w-full">
-            Reject
+            Review recommendation
           </Button>
         </div>
       )}
+
+      <AgentActivity status={status} items={activity} />
 
       {status === "INVESTIGATING" && (
         <div className="px-6 py-6">
@@ -197,6 +209,20 @@ function AgentPanel({ status }: AgentPanelProps) {
 
             <p className="mt-2 text-sm font-medium">
               No recovery action required
+            </p>
+          </div>
+        </div>
+      )}
+
+      {status === "REJECTED" && (
+        <div className="px-6 py-6">
+          <div className="rounded-xl bg-muted/50 p-4">
+            <p className="text-xs text-muted-foreground">
+              Outcome
+            </p>
+
+            <p className="mt-2 text-sm font-medium">
+              Recovery was not executed
             </p>
           </div>
         </div>

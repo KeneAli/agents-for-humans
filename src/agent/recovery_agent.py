@@ -15,6 +15,10 @@ from src.agent.tools.recovery_tools import (
     create_recovery_tools,
 )
 
+from src.agent.recovery_activity_hooks import (
+    RecoveryActivityHooks,
+)
+
 from src.simulation.operational_state import (
     OperationalState,
 )
@@ -130,6 +134,13 @@ def create_recovery_agent(
         runtime_session_id=runtime_session_id,
     )
 
+    activity_hooks = RecoveryActivityHooks(
+        state=state,
+        run_id=run_id,
+        event_id=event_id,
+        runtime_session_id=runtime_session_id,
+    )
+
     human_approval = HumanInTheLoop(
 
         allowed_tools=[ 
@@ -157,6 +168,7 @@ def create_recovery_agent(
         interventions=[
             human_approval,
         ],
+        hooks=[activity_hooks],
         session_manager=session_manager,
     )
 

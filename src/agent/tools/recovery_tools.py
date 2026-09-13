@@ -227,6 +227,21 @@ def create_recovery_tools(
             runtime_session_id=runtime_session_id,
         )
 
+        state.record_audit_event(
+            event_type="RECOMMENDATION_PREPARED",
+            shipment_id=shipment_id,
+            run_id=workflow_run_id,
+            details={
+                "option_type": (
+                    best_option["option_type"]
+                    if best_option is not None
+                    else None
+                ),
+            },
+            event_id=event_id,
+            runtime_session_id=runtime_session_id,
+        )
+
         return {
             "found": True,
             "shipment_id": shipment_id,
@@ -513,6 +528,15 @@ def create_recovery_tools(
             runtime_session_id=runtime_session_id,
         )
 
+        state.record_audit_event(
+            event_type="RECOVERY_EXECUTION_STARTED",
+            shipment_id=shipment_id,
+            run_id=workflow_run_id,
+            details={"option_type": option_type},
+            event_id=event_id,
+            runtime_session_id=runtime_session_id,
+        )
+
         # ----------------------------------------------------
         # Apply recovery to live operational state
         # ----------------------------------------------------
@@ -548,6 +572,15 @@ def create_recovery_tools(
                     selected_option.estimated_recovery_hours
                 ),
             },
+            event_id=event_id,
+            runtime_session_id=runtime_session_id,
+        )
+
+        state.record_audit_event(
+            event_type="VERIFICATION_STARTED",
+            shipment_id=shipment_id,
+            run_id=workflow_run_id,
+            details={"option_type": option_type},
             event_id=event_id,
             runtime_session_id=runtime_session_id,
         )
@@ -588,6 +621,15 @@ def create_recovery_tools(
                         ]
                     ),
                 },
+                event_id=event_id,
+                runtime_session_id=runtime_session_id,
+            )
+
+            state.record_audit_event(
+                event_type="VERIFICATION_COMPLETED",
+                shipment_id=shipment_id,
+                run_id=workflow_run_id,
+                details={"shipment_status": verified_shipment["shipment_status"]},
                 event_id=event_id,
                 runtime_session_id=runtime_session_id,
             )

@@ -1,21 +1,36 @@
 import { Circle, Radio } from "lucide-react"
+import { useMutation } from "@tanstack/react-query"
+import { useNavigate } from "react-router"
 
 import SimulationDialog from "@/components/SimulationDialog"
 import RunCard from "@/components/RunCard"
-import { useSimulation } from "@/context/SimulationContext"
-
-const shipmentIds = [
-  "SHP-0048",
-  "SHP-0127",
-  "SHP-0214",
-  "SHP-0319",
-]
+import { createDisruption } from "@/lib/api"
+import { useShipments } from "@/hooks/useShipments"
+import type { Run } from "@/types/run"
 
 function Operations() {
-  const { simulateDisruption, getRuns } = useSimulation()
+  const navigate = useNavigate()
+  const shipmentsQuery = useShipments()
+  const createDisruptionMutation = useMutation({
+    mutationFn: createDisruption,
+    onSuccess: (response) => {
+      navigate(`/runs/${response.shipment_id}/${response.run_id}`)
+    },
+  })
 
-  const displayedRuns = shipmentIds.flatMap((shipmentId) =>
-    getRuns(shipmentId),
+  const displayedRuns: Run[] = (shipmentsQuery.data?.shipments ?? []).map(
+    (shipment) => ({
+      runId: shipment.shipment_id,
+      shipmentId: shipment.shipment_id,
+      route: shipment.route.replace("->", "→"),
+      operationalStatus: shipment.status === "IN_TRANSIT" ? "IN_TRANSIT" : "AT_ORIGIN",
+      agentStatus: "MONITORING",
+      severity: "LOW",
+      eta: new Date(shipment.eta).toLocaleString(undefined, {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }),
+    }),
   )
 
   const disruptedRuns = displayedRuns.filter(
@@ -97,11 +112,35 @@ function Operations() {
           </div>
 
           <SimulationDialog
-            onSimulate={simulateDisruption}
+            shipments={shipmentsQuery.data?.shipments ?? []}
+            isLoadingShipments={shipmentsQuery.isLoading}
+            shipmentError={shipmentsQuery.error?.message}
+            submissionError={createDisruptionMutation.error?.message}
+            isSubmitting={createDisruptionMutation.isPending}
+            onSimulate={async (config) => {
+              await createDisruptionMutation.mutateAsync({
+                event_id: `SIM-UI-${crypto.randomUUID().replaceAll("-", "")}`,
+                event_type: config.disruptionType,
+                shipment_id: config.shipmentId,
+                delay_minutes: config.delayMinutes,
+                severity: config.severity,
+                source: "sceance-ui",
+                timestamp: new Date().toISOString(),
+                description: `${config.disruptionType.replaceAll("_", " ")} causing an estimated ${config.delayMinutes}-minute disruption.`,
+              })
+            }}
           />
         </div>
 
         <div className="divide-y divide-border">
+          {shipmentsQuery.isLoading && (
+            <p className="px-6 py-8 text-sm text-muted-foreground">Loading shipments...</p>
+          )}
+
+          {shipmentsQuery.isError && (
+            <p className="px-6 py-8 text-sm text-muted-foreground">Unable to load shipments.</p>
+          )}
+
           {displayedRuns.map((run) => (
             <RunCard key={run.runId} run={run} />
           ))}

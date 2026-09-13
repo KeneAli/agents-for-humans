@@ -332,6 +332,36 @@ class RecoveryEngine:
             - transport_cost
         )
 
+        transfer_route = self.routes[
+            (
+                self.routes["origin_warehouse"]
+                == source_warehouse
+            )
+            &
+            (
+                self.routes["destination_warehouse"]
+                == destination
+            )
+        ]
+        transfer_transit_hours = (
+            float(transfer_route.iloc[0]["typical_transit_hours"])
+            if not transfer_route.empty
+            else 1.0
+        )
+        current_eta = pd.to_datetime(shipment["current_eta"])
+        departure_time = pd.to_datetime(shipment["departure_time"])
+        reallocation_eta = departure_time + pd.Timedelta(
+            hours=transfer_transit_hours
+        )
+        hours_recovered = (
+            current_eta - reallocation_eta
+        ).total_seconds() / 3600.0
+        estimated_recovery_hours = max(
+            round(hours_recovered, 1),
+            round(transfer_transit_hours, 1),
+            1.0,
+        )
+
         return RecoveryOption(
             option_type=INVENTORY_REALLOCATION,
             description=(
@@ -349,6 +379,7 @@ class RecoveryEngine:
             source_warehouse_id=source_warehouse,
             destination_warehouse_id=destination,
             quantity_units=transfer_quantity,
+            estimated_recovery_hours=estimated_recovery_hours,
             safety_stock_protected=True,
         )
 

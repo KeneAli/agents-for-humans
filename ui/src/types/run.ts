@@ -13,6 +13,7 @@ export type AgentStatus =
   | "VERIFYING"
   | "RESOLVED"
   | "NO_ACTION"
+  | "REJECTED"
 
 export type RunSeverity = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL"
 

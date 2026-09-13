@@ -223,6 +223,8 @@ def test_recovery_execution_writes_audits_only_for_its_run():
     assert {event["event_type"] for event in run_a_events} >= {
         "RECOVERY_EXECUTED",
         "STATE_VERIFIED",
+        "VERIFICATION_STARTED",
+        "VERIFICATION_COMPLETED",
     }
     assert all(event["run_id"] == run_a for event in run_a_events)
     assert repository.get_audit_events("SHP-0048", run_b) == []
