@@ -108,9 +108,40 @@ function stateForStep(
   return "pending"
 }
 
+function extractEvidence(event?: { details: Record<string, unknown> }): string[] | undefined {
+  if (!event?.details) return undefined
+  if (Array.isArray(event.details.details) && event.details.details.every((item) => typeof item === "string")) {
+    return event.details.details as string[]
+  }
+  return undefined
+}
+
+function extractLive(event?: { details: Record<string, unknown> }): string[] | undefined {
+  if (!event?.details) return undefined
+  if (Array.isArray(event.details.live) && event.details.live.every((item) => typeof item === "string")) {
+    return event.details.live as string[]
+  }
+  return undefined
+}
+
+function extractObservation(event?: { details: Record<string, unknown> }): string | undefined {
+  if (!event?.details) return undefined
+  if (typeof event.details.agent_observation === "string" && event.details.agent_observation.trim()) {
+    return event.details.agent_observation.trim()
+  }
+  return undefined
+}
+
+function extractSummary(event?: { details: Record<string, unknown> }, fallback?: string): string | undefined {
+  if (event?.details && typeof event.details.summary === "string" && event.details.summary.trim()) {
+    return event.details.summary.trim()
+  }
+  return fallback
+}
+
 function activityForRun(
   agentStatus: AgentStatus,
-  auditEvents: Array<{ event_type: string; timestamp: string }>,
+  auditEvents: Array<{ event_type: string; timestamp: string; details: Record<string, unknown> }>,
 ): ActivityItem[] {
   const byType = new Map(auditEvents.map((event) => [event.event_type, event]))
   const auditKeys = new Set(byType.keys())
@@ -180,18 +211,24 @@ function activityForRun(
     for (const def of traceDefinitions.slice(0, 4)) {
       const completed = byType.get(def.completedEvent)
       items.push({
+        id: def.key,
         label: def.completedLabel,
-        description: def.description,
+        summary: extractSummary(completed, def.description),
+        evidence: extractEvidence(completed),
+        agent_observation: extractObservation(completed),
         state: "completed",
         timestamp: completed?.timestamp,
       })
     }
-    const approvalAudit = byType.get("APPROVAL_REQUESTED") ?? byType.get("RECOVERY_REJECTED")
+    const rejectAudit = byType.get("RECOVERY_REJECTED") ?? byType.get("APPROVAL_REQUESTED")
     items.push({
+      id: "REJECTION",
       label: "Operator declined recommendation",
-      description: "Recovery execution was bypassed per human override.",
+      summary: extractSummary(rejectAudit, "Recovery execution was bypassed per human override."),
+      evidence: extractEvidence(rejectAudit) ?? ["Operator Decision: REJECTED", "Execution: Bypassed per human override"],
+      agent_observation: extractObservation(rejectAudit) ?? "The operator declined the proposed recovery action. Execution bypassed; shipment remains on unmitigated trajectory.",
       state: "completed",
-      timestamp: approvalAudit?.timestamp,
+      timestamp: rejectAudit?.timestamp,
     })
     return items
   }
@@ -201,17 +238,24 @@ function activityForRun(
     for (const def of traceDefinitions.slice(0, 4)) {
       const completed = byType.get(def.completedEvent)
       items.push({
+        id: def.key,
         label: def.completedLabel,
-        description: def.description,
+        summary: extractSummary(completed, def.description),
+        evidence: extractEvidence(completed),
+        agent_observation: extractObservation(completed),
         state: "completed",
         timestamp: completed?.timestamp,
       })
     }
+    const noActionAudit = byType.get("RECOMMENDATION_PREPARED") ?? byType.get("OPTIONS_EVALUATED")
     items.push({
+      id: "NO_ACTION",
       label: "No recovery required",
-      description: "Disruption delay is within SLA tolerance.",
+      summary: "Disruption delay is within SLA tolerance with zero penalty exposure.",
+      evidence: ["Delay is within contract SLA tolerance", "Zero financial penalty exposure"],
+      agent_observation: "SCÉANCE determined that no recovery action is required because delivery commitments remain intact.",
       state: "completed",
-      timestamp: byType.get("RECOMMENDATION_PREPARED")?.timestamp,
+      timestamp: noActionAudit?.timestamp,
     })
     return items
   }
@@ -221,8 +265,11 @@ function activityForRun(
     for (const def of traceDefinitions) {
       const completed = byType.get(def.completedEvent)
       items.push({
+        id: def.key,
         label: def.completedLabel,
-        description: def.description,
+        summary: extractSummary(completed, def.description),
+        evidence: extractEvidence(completed),
+        agent_observation: extractObservation(completed),
         state: "completed",
         timestamp: completed?.timestamp,
       })
@@ -255,23 +302,29 @@ function activityForRun(
     if (index < activeIndex) {
       const completed = byType.get(def.completedEvent)
       items.push({
+        id: def.key,
         label: def.completedLabel,
-        description: def.description,
+        summary: extractSummary(completed, def.description),
+        evidence: extractEvidence(completed),
+        agent_observation: extractObservation(completed),
         state: "completed",
         timestamp: completed?.timestamp,
       })
     } else if (index === activeIndex) {
       const started = def.startedEvent ? byType.get(def.startedEvent) : undefined
       items.push({
+        id: def.key,
         label: def.activeLabel,
-        description: def.description,
+        summary: extractSummary(started, def.description),
+        live: extractLive(started),
         state: "current",
         timestamp: started?.timestamp,
       })
     } else {
       items.push({
+        id: def.key,
         label: def.completedLabel,
-        description: def.description,
+        summary: def.description,
         state: "pending",
       })
     }
@@ -321,8 +374,15 @@ function RunDetails() {
     ? activityForRun(agentStatus, auditEvents)
     : [
         {
+          id: "CONTEXT",
           label: "Reviewing shipment context",
-          description: "Checking current shipment status and delivery window.",
+          activeLabel: "Reviewing shipment context",
+          summary: "Checking current shipment status and delivery window.",
+          live: [
+            "Retrieving shipment record and operational status...",
+            "Checking route origin, destination, and distance...",
+            "Verifying carrier profile and transit requirements...",
+          ],
           state: "current" as const,
         },
       ]

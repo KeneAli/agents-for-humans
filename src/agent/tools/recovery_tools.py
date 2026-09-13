@@ -182,11 +182,39 @@ def create_recovery_tools(
         # Record audit trail
         # ----------------------------------------------------
 
+        projected_penalty = float(consequences["projected_sla_penalty_eur"])
+        options_evidence = []
+        for opt in serialized_options:
+            status_str = "feasible" if opt["feasible"] else "infeasible"
+            desc = opt["option_type"].replace("_", " ").title()
+            if opt["feasible"]:
+                if opt["option_type"] == "DO_NOTHING":
+                    options_evidence.append(f"{desc}: feasible (no intervention, net benefit: -€{projected_penalty:.2f})")
+                else:
+                    options_evidence.append(
+                        f"{desc}: {status_str} (cost: €{opt['recovery_cost_eur']:.2f}, net benefit: €{opt['net_benefit_eur']:.2f})"
+                    )
+            else:
+                options_evidence.append(f"{desc}: {status_str} — {opt['reason']}")
+
+        if best_option is not None:
+            if best_option["option_type"] == "EXPEDITED_TRANSPORT":
+                obs = f"Expedited transport is the strongest feasible recovery option, recovering {best_option.get('estimated_recovery_hours', 0):.1f}h to protect customer SLA."
+            elif best_option["option_type"] == "INVENTORY_REALLOCATION":
+                obs = f"Inventory reallocation from {best_option.get('source_warehouse_id')} to {best_option.get('destination_warehouse_id')} is feasible with a net benefit of €{best_option.get('net_benefit_eur', 0):.2f} while protecting safety stock."
+            else:
+                obs = "Accepting current trajectory (Do Nothing) is recommended as delay is within acceptable tolerance."
+        else:
+            obs = "No feasible recovery option identified."
+
         state.record_audit_event(
             event_type="OPTIONS_EVALUATED",
             shipment_id=shipment_id,
             run_id=workflow_run_id,
             details={
+                "summary": "Evaluated recovery strategies against network constraints.",
+                "details": options_evidence,
+                "agent_observation": obs,
                 "selected_option": (
                     best_option["option_type"]
                     if best_option is not None
@@ -232,6 +260,14 @@ def create_recovery_tools(
             shipment_id=shipment_id,
             run_id=workflow_run_id,
             details={
+                "summary": f"Selected {best_option['option_type'].replace('_', ' ').title() if best_option else 'Do Nothing'} for human authorization.",
+                "details": [
+                    f"Selected Action: {best_option['option_type'] if best_option else 'DO_NOTHING'}",
+                    f"Rationale: {best_option['reason'] if best_option else 'No action'}",
+                    f"Recovery Cost: €{best_option['recovery_cost_eur']:.2f}" if best_option else "Recovery Cost: €0.00",
+                    f"Net Benefit: €{best_option['net_benefit_eur']:.2f}" if best_option else "Net Benefit: €0.00",
+                ],
+                "agent_observation": obs,
                 "option_type": (
                     best_option["option_type"]
                     if best_option is not None
@@ -513,6 +549,12 @@ def create_recovery_tools(
             shipment_id=shipment_id,
             run_id=workflow_run_id,
             details={
+                "summary": "Operator authorized recovery action.",
+                "details": [
+                    "Operator Decision: APPROVED",
+                    f"Action: {option_type}",
+                ],
+                "agent_observation": "The recovery action was authorized by the operator. Execution can now proceed.",
                 "option_type": option_type,
             },
             event_id=event_id,
@@ -532,7 +574,15 @@ def create_recovery_tools(
             event_type="RECOVERY_EXECUTION_STARTED",
             shipment_id=shipment_id,
             run_id=workflow_run_id,
-            details={"option_type": option_type},
+            details={
+                "summary": "Executing approved recovery action in operational state.",
+                "live": [
+                    "Validating execution parameters...",
+                    "Applying transit time and route adjustments...",
+                    "Updating live operational shipment record...",
+                ],
+                "option_type": option_type,
+            },
             event_id=event_id,
             runtime_session_id=runtime_session_id,
         )
@@ -564,6 +614,14 @@ def create_recovery_tools(
             shipment_id=shipment_id,
             run_id=workflow_run_id,
             details={
+                "summary": "Recovery action executed successfully.",
+                "details": [
+                    f"Action: {option_type}",
+                    f"Recovery Cost: €{float(selected_option.recovery_cost_eur):.2f}",
+                    f"Estimated Recovery: {float(selected_option.estimated_recovery_hours):.1f}h",
+                    f"Avoided Penalty: €{float(selected_option.avoided_sla_penalty_eur):.2f}",
+                ],
+                "agent_observation": f"{option_type.replace('_', ' ').title()} was executed and the shipment recovery target of {float(selected_option.estimated_recovery_hours):.1f}h was applied.",
                 "option_type": option_type,
                 "recovery_cost_eur": float(
                     selected_option.recovery_cost_eur
@@ -580,7 +638,15 @@ def create_recovery_tools(
             event_type="VERIFICATION_STARTED",
             shipment_id=shipment_id,
             run_id=workflow_run_id,
-            details={"option_type": option_type},
+            details={
+                "summary": "Verifying resulting operational state.",
+                "live": [
+                    "Querying live operational state...",
+                    "Comparing revised ETA against recovery target...",
+                    "Confirming RECOVERY_IN_PROGRESS status...",
+                ],
+                "option_type": option_type,
+            },
             event_id=event_id,
             runtime_session_id=runtime_session_id,
         )
@@ -610,6 +676,12 @@ def create_recovery_tools(
                 shipment_id=shipment_id,
                 run_id=workflow_run_id,
                 details={
+                    "summary": "Operational state verified.",
+                    "details": [
+                        f"Shipment Status: {verified_shipment['shipment_status']}",
+                        f"Revised Current ETA: {verified_shipment['current_eta']}",
+                    ],
+                    "agent_observation": f"Operational state confirmed as {verified_shipment['shipment_status']} with revised ETA {verified_shipment['current_eta']}, satisfying the recovery target.",
                     "shipment_status": (
                         verified_shipment[
                             "shipment_status"
@@ -629,7 +701,15 @@ def create_recovery_tools(
                 event_type="VERIFICATION_COMPLETED",
                 shipment_id=shipment_id,
                 run_id=workflow_run_id,
-                details={"shipment_status": verified_shipment["shipment_status"]},
+                details={
+                    "summary": "Recovery workflow verified and closed.",
+                    "details": [
+                        f"Final Status: {verified_shipment['shipment_status']}",
+                        f"Verified ETA: {verified_shipment['current_eta']}",
+                    ],
+                    "agent_observation": "The resulting ETA satisfies the recovery target and all operational constraints are met.",
+                    "shipment_status": verified_shipment["shipment_status"],
+                },
                 event_id=event_id,
                 runtime_session_id=runtime_session_id,
             )

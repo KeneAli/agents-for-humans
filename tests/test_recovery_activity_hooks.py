@@ -54,3 +54,52 @@ def test_unrecognized_or_failed_tools_do_not_emit_completion_events():
     hooks.after_tool_call(tool_event("get_shipment_context", exception=ValueError()))
 
     assert repository.get_audit_events("SHP-0048", "RUN-A") == []
+
+
+def test_after_tool_call_populates_evidence_and_agent_observation():
+    repository = InMemoryStateRepository()
+    hooks = RecoveryActivityHooks(
+        state=OperationalState(repository=repository),
+        run_id="RUN-A",
+        event_id="EVENT-A",
+        runtime_session_id="SESSION-A",
+    )
+
+    context_result = SimpleNamespace(
+        tool_use={"name": "get_shipment_context", "input": {"shipment_id": "SHP-0048"}},
+        exception=None,
+        result={
+            "content": [
+                {
+                    "json": {
+                        "shipment": {
+                            "shipment_id": "SHP-0048",
+                            "shipment_status": "DELAYED",
+                            "current_eta": "2026-08-22 00:48:00",
+                        },
+                        "order": {
+                            "priority": "PREMIUM",
+                            "promised_delivery": "2026-08-23 12:00:00",
+                        },
+                        "route": {
+                            "origin_warehouse": "BRU-01",
+                            "destination_warehouse": "FRA-01",
+                            "distance_km": 335.0,
+                        },
+                        "carrier": {
+                            "carrier_name": "SwiftLink Transport",
+                            "base_cost_per_km": 1.4,
+                        },
+                    }
+                }
+            ]
+        },
+    )
+
+    hooks.after_tool_call(context_result)
+    events = repository.get_audit_events("SHP-0048", "RUN-A")
+    assert len(events) == 1
+    assert events[0]["event_type"] == "SHIPMENT_CONTEXT_REVIEWED"
+    assert "details" in events[0]["details"]
+    assert "agent_observation" in events[0]["details"]
+    assert "SHP-0048" in events[0]["details"]["agent_observation"]

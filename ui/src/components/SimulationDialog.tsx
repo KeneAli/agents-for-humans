@@ -13,29 +13,31 @@ import {
 import { Button } from "@/components/ui/button"
 import type { Shipment } from "@/lib/api"
 
+export type DisruptionType =
+  | "VEHICLE_BREAKDOWN"
+  | "TRAFFIC_DELAY"
+  | "CUSTOMS_DELAY"
+  | "WEATHER_DISRUPTION"
+
 export interface SimulationConfig {
   shipmentId: string
-  disruptionType: string
+  disruptionType: DisruptionType
   delayMinutes: number
   severity: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL"
 }
 
-const disruptions = [
+const disruptions: { value: DisruptionType; label: string }[] = [
   {
     value: "VEHICLE_BREAKDOWN",
     label: "Vehicle breakdown",
   },
   {
-    value: "DRIVER_UNAVAILABLE",
-    label: "Driver unavailable",
+    value: "TRAFFIC_DELAY",
+    label: "Traffic delay",
   },
   {
-    value: "ROAD_CLOSURE",
-    label: "Road closure",
-  },
-  {
-    value: "SEVERE_DELAY",
-    label: "Severe delay",
+    value: "CUSTOMS_DELAY",
+    label: "Customs delay",
   },
   {
     value: "WEATHER_DISRUPTION",
@@ -71,7 +73,7 @@ function SimulationDialog({
 }: SimulationDialogProps) {
   const [open, setOpen] = useState(false)
   const [shipmentId, setShipmentId] = useState("")
-  const [disruptionType, setDisruptionType] = useState(
+  const [disruptionType, setDisruptionType] = useState<DisruptionType>(
     "VEHICLE_BREAKDOWN",
   )
   const [delayMinutes, setDelayMinutes] = useState(480)
@@ -100,7 +102,10 @@ function SimulationDialog({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button variant="outline" />}>
+      <DialogTrigger
+        onClick={() => setOpen(true)}
+        render={<Button variant="outline" />}
+      >
         <Radio className="size-4" />
         Simulate disruption
       </DialogTrigger>
@@ -157,7 +162,7 @@ function SimulationDialog({
               id="disruption"
               value={disruptionType}
               onChange={(event) =>
-                setDisruptionType(event.target.value)
+                setDisruptionType(event.target.value as DisruptionType)
               }
               className="mt-2 flex h-10 w-full rounded-lg border border-border bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
             >
